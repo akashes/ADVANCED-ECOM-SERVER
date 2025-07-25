@@ -8,6 +8,19 @@ import generateAccessToken from "../utils/generateAccessToken.js";
 import generateRefreshToken from "../utils/generateRefreshToken.js";
 dotenv.config()
 
+import fs from 'fs/promises'
+import { v2 as cloudinary } from "cloudinary";
+
+
+// configuration
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_CLOUD_API_KEY,
+    api_secret: process.env.CLOUDINARY_CLOUD_API_SECRET,
+    secure: true
+})
+
+
 // register user
 export async function registerUserController(request,response){
     console.log('inside user controller')
@@ -270,8 +283,8 @@ export async function logoutController(request,response) {
         }
  
 
-        response.clearCookie('accessToken')
-        response.clearCookie('refreshToken')
+        response.clearCookie('accessToken',cookiesOption)
+        response.clearCookie('refreshToken',cookiesOption)
 
                await UserModel.findByIdAndUpdate(userId,{
             refresh_token:""
@@ -290,3 +303,124 @@ export async function logoutController(request,response) {
         
     }
 }
+
+
+//image upload cloudinary
+export async function userAvatarController(request, response) {
+    try {
+        const userId = request.userId;
+        const images = request.files;
+
+        if (!images || images.length === 0) {
+            return response.status(400).json({ message: "No files uploaded" });
+        }
+
+        const user = await UserModel.findById(userId)
+        if(!user){
+            return res.status(400).json({
+                message:"User not found",
+                success:false,
+                error:true
+            })
+        }
+        
+        // uploads to avatar folder
+        const options = {
+            use_filename: true,
+            unique_filename: false,
+            overwrite: true,
+            folder:'avatars'
+        };
+
+        const imageUrls = [];
+
+        for (let i = 0; i < images.length; i++) {
+            const filePath = images[i].path;
+
+            // Upload to Cloudinary
+            const result = await cloudinary.uploader.upload(filePath, options);
+            imageUrls.push(result.secure_url);
+
+        
+            // non blocking deletion
+            await fs.unlink(filePath);
+        }
+
+        //deleting previous avatar from cloudinary
+        if(user.avatar){
+            const parts = user.avatar.split('/');
+            const fileName = parts.pop().split('.')[0]; // 'user123'
+            const folder = parts.pop(); // 'avatar'
+            const publicId= `${folder}/${fileName}`; 
+            await cloudinary.uploader.destroy(publicId)
+        }
+
+           //update user avatar
+            user.avatar = imageUrls[0]
+            await user.save()
+
+
+        return response.status(200).json({
+            _id: userId,
+            avatar: imageUrls[0] // return only first image URL
+        });
+
+    } catch (error) {
+        console.log(error)
+        return response.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false
+        });
+    }
+}
+
+
+// remove cloudinary images
+export async function removeAvatarController(request,response){
+    try {
+        const imgUrl = request.query?.img
+        if(!imgUrl){
+            return response.status(400).json({
+                message:"Image url is required",
+                success:false,
+                error:true
+            })
+        }
+        //assuming avatar is in the avatar folder in cloudinary3
+        const parts = imgUrl.split('/');
+            const fileName = parts.pop().split('.')[0]; // 'user123'
+            const folder = parts.pop(); // 'upload'
+            const publicId= `${folder}/${fileName}`; 
+
+            console.log(publicId)
+
+            // result would be in {result:'ok'/'not found'}
+       const result= await cloudinary.uploader.destroy(publicId)
+
+       if(result.result==='ok'){
+        return response.status(200).json(res)
+       }else if(result.result==='not found'){
+        return response.status(400).json({
+            message:"Image not found",
+            success:false,
+            error:true
+        })
+       }else{
+        return response.status(500).json({
+            message:"Something went wrong",
+            success:false,
+            error:true
+        })
+       }
+        
+    } catch (error) {
+        return response.status(500).json({
+            message:error.message||error,
+            error:true,
+            success:false
+        })
+        
+    }
+}
+
