@@ -1,0 +1,43 @@
+import express from 'express'
+import cors from 'cors'
+import dotenv from 'dotenv'
+dotenv.config()
+import { connectDB } from './config/connectDB.js'
+connectDB()
+import cookieParser from 'cookie-parser'
+import morgan from 'morgan'
+import helmet from 'helmet'
+import userRouter from './routes/user.route.js'
+
+
+ 
+const app = express()
+app.use(cors())
+// app.options('/*',cors())  // cors will manage this by default, but  if any cors errors occurs try uncommenting this 
+app.use(express.json())
+app.use(cookieParser())
+app.use(morgan("dev"))
+app.use(helmet({
+    crossOriginResourcePolicy:false
+
+}))
+
+const PORT = process.env.PORT || 8080
+
+
+app.get('/',(req,res)=>{
+    res.send('hai how are you')
+})
+
+app.use('/api/user',userRouter)
+
+
+
+app.use((err, req, res, next) => {
+  console.error("Error middleware:", err);
+  res.status(500).json({ error: "Something went wrong" });
+});
+
+app.listen(PORT,()=>{
+    console.log(`server is running on ${PORT}`)
+})
