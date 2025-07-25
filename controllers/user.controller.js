@@ -4,8 +4,11 @@ import jwt from "jsonwebtoken";
 import sendEmailFun from "../config/sendEmail.js";
 import verificationEmailTemplate from "../utils/verifyEmailTemplate.js";
 import dotenv from "dotenv";
+import generateAccessToken from "../utils/generateAccessToken.js";
+import generateRefreshToken from "../utils/generateRefreshToken.js";
 dotenv.config()
 
+// register user
 export async function registerUserController(request,response){
     console.log('inside user controller')
     try {
@@ -17,7 +20,7 @@ export async function registerUserController(request,response){
             return response.status(400).json({
                 message:"All fields are required",
                 error:true,
-                success:false
+                success:false 
             })
         }
         // duplicate checking
@@ -84,7 +87,7 @@ export async function registerUserController(request,response){
     }
 }
 
-
+// verify email
 export async function verifyEmailController(request,response) {
     try {
         const{email,otp}=request.body
@@ -166,4 +169,124 @@ export async function verifyEmailController(request,response) {
         
     }
     
+}
+
+// login user
+export async function loginUserController(request,response) {
+
+   try {
+     const{email,password}=request.body
+
+    if(!email||!password){
+        return response.status(400).json({
+            message:"All fields are required",
+            success:false,
+            error:true
+        })
+    }
+
+    const user = await UserModel.findOne({email}).select('+password')
+
+    if(!user){
+        return response.status(400).json({
+            message:"User not found",
+            success:false,
+            error:true
+        })
+    }
+    if(user.status!=='Active'){
+        return response.status(400).json({
+            message:"User is not active,Contact Admin",
+            success:false,
+            error:true
+        })
+    }
+
+    // if(!user.verify_email){
+    //     return response.status(400).json({
+    //         message:"Please verify your email",
+    //         success:false,
+    //         error:true
+    //     })
+    // }
+
+    const isPasswordValid = await bcrypt.compare(password,user.password)
+
+    if(!isPasswordValid){
+        return response.status(400).json({
+            message:"Invalid password",
+            success:false,
+            error:true
+        })
+    }
+
+    const accessToken = await generateAccessToken(user._id)
+    const refreshToken = await generateRefreshToken(user._id)
+
+    const updateUser = await UserModel.findByIdAndUpdate(user?._id,{
+        last_login_date:new Date()
+    })
+    const cookiesOption={
+        httpOnly:true,
+        secure:true,
+        sameSite:'none'
+    }
+    response.cookie('accessToken',accessToken,cookiesOption)
+    response.cookie('refreshToken',refreshToken,cookiesOption)
+
+    return response.status(200).json({
+        message:"Login successful",
+        success:true,
+        error:false,
+        data:{
+            accessToken,
+            refreshToken
+        }
+    })
+   } catch (error) {
+    console.log(error)
+    return response.status(500).json({
+        message:error.message||error,
+        error:true,
+        success:false
+    })
+    
+   }
+
+
+    
+}
+
+//logout controller
+
+export async function logoutController(request,response) {
+    try {
+
+        const userId = request.userId
+        const cookiesOption={
+            httpOnly:true,
+            secure:true,
+            sameSite:'none'
+        }
+ 
+
+        response.clearCookie('accessToken')
+        response.clearCookie('refreshToken')
+
+               await UserModel.findByIdAndUpdate(userId,{
+            refresh_token:""
+        })
+        return response.status(200).json({
+            message:"Logout successful",
+            success:true,
+            error:false
+        })
+    } catch (error) {
+        return response.status(500).json({
+            message:error.message||error,
+            error:true,
+            success:false
+        })
+        
+    }
 }
