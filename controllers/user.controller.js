@@ -215,13 +215,13 @@ export async function loginUserController(request,response) {
         })
     }
 
-    // if(!user.verify_email){
-    //     return response.status(400).json({
-    //         message:"Please verify your email",
-    //         success:false,
-    //         error:true
-    //     })
-    // }
+    if(!user.verify_email){
+        return response.status(400).json({
+            message:"Please verify your email",
+            success:false,
+            error:true
+        })
+    }
 
     const isPasswordValid = await bcrypt.compare(password,user.password)
 
@@ -424,3 +424,98 @@ export async function removeAvatarController(request,response){
     }
 }
 
+
+
+//update user details
+export async function updateUserDetails(request,response) {
+    try {
+        const userId = request.userId
+        const{name,email,phone,password}=request.body
+
+        //atleast one field must be there
+        if(!name && !email && !phone && !password){
+            return response.status(400).json({
+                message:"Atleast one field is required",
+                success:false,
+                error:true
+            })
+        }
+
+        const user = await UserModel.findById(userId).select('+password +otp +otpExpires +otpAttempts +verify_email')
+
+        //user not found
+        if(!user){
+            return response.status(400).json({
+                message:"User not found",
+                success:false,
+                error:true
+            })
+        }
+        
+        const isEmailChanged =email  &&  email !== user.email
+
+     
+        //if email changes email verification will be required
+        let verifyCode
+       if(isEmailChanged){
+                 verifyCode = Math.floor(100000 + Math.random() * 900000).toString()
+  
+                
+       }
+
+
+       let hashedPassword;
+        if(typeof password === 'string' && password.trim()){
+             hashedPassword=await bcrypt.hash(password,10)
+        }else{
+            hashedPassword = user.password
+        }
+        const updatedUser = await UserModel.findByIdAndUpdate(userId,
+            {
+                name:name||user.name,
+                email:email||user.email,
+                mobile:phone||user.mobile,
+                password:hashedPassword,
+                verify_email:isEmailChanged?false:user.verify_email,
+                otp:isEmailChanged?verifyCode:user.otp,
+                otpExpires:isEmailChanged?Date.now()+600000:user.otpExpires,
+                otpAttempts:isEmailChanged?0:user.otpAttempts
+            },
+            {
+                new:true
+            }
+        )
+        if(isEmailChanged){
+         const verifyEmail = await sendEmailFun(
+            email,
+            'Verify Your Email for Shopify Ecommerce App',
+            "",
+            verificationEmailTemplate(email,verifyCode)
+        
+        )
+        if(!verifyEmail){
+            return response.status(500).json({
+                message:"Error sending verification email",
+                error:true,
+                success:false
+            })
+        }
+        }
+
+        return response.status(200).json({
+            message:"User updated successfully",
+            success:true,
+            error:false,
+            user:updatedUser
+        })
+ 
+    } catch (error) {
+        return response.status(500).json({
+            message:error.message||error,
+            error:true,
+            success:false
+        })
+        
+    }
+    
+}
