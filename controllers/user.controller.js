@@ -83,3 +83,87 @@ export async function registerUserController(request,response){
         })
     }
 }
+
+
+export async function verifyEmailController(request,response) {
+    try {
+        const{email,otp}=request.body
+
+        // input validation
+        if(!email||!otp){
+            return response.status(400).json({
+                message:"All fields are required",
+                success:false,
+                error:true
+            })
+        }
+
+        const user = await UserModel.findOne({email}).select('+otp +otpExpires +otpAttempts')
+        
+        //user not found
+        if(!user){
+            return response.status(400).json({
+                message:"User not found",
+                success:false,
+                error:true
+            })
+        }
+        if(user.verify_email){
+            return response.status(400).json({
+                message:"Email already verified",
+                success:false,
+                error:true
+            })
+        }
+        if(user.otpAttempts>=5){
+            return response.status(400).json({
+                message:"Too many failed attempts. Please request a new OTP",
+                success:false,
+                error:true
+            })
+        }
+
+        const isCodeValid = user.otp===otp 
+        const isCodeExpired = user.otpExpires< Date.now()
+
+
+        if(!isCodeValid){
+            user.otpAttempts+=1
+            await user.save()
+            return response.status(400).json({
+                message:"Invalid OTP",
+                success:false,
+                error:true
+            })
+          
+        }
+        if(isCodeExpired){
+            return response.status(400).json({
+                message:"OTP expired",
+                success:false,
+                error:true
+            })
+        }
+
+            user.verify_email=true
+            user.otp=null
+            user.otpExpires=null
+            user.otpAttempts=0
+            await user.save()
+            return response.status(200).json({
+                success:true,
+                error:false,
+                message:"Email verified successfully"
+            })
+            
+
+    } catch (error) {
+        return response.status(500).json({
+            message:error.message||error,
+            error:true,
+            success:false
+        })
+        
+    }
+    
+}

@@ -61,11 +61,18 @@ const userSchema =new  mongoose.Schema({
         }
      ],
     otp:{
-      type:String
+      type:String,
+      select:false
     },
     otpExpires:{
-        type:Date
+        type:Date,
+        select:false
 
+    },
+    otpAttempts:{
+        type:Number,
+        default:0,
+        select:false
     },
      role:{
         type:String,
