@@ -10,6 +10,8 @@ dotenv.config()
 
 import fs from 'fs/promises'
 import { v2 as cloudinary } from "cloudinary";
+import mongoose from "mongoose";
+import forgotPasswordEmailTemplate from "../utils/forgotPasswordEmailTemplate.js";
 
 
 // configuration
@@ -62,7 +64,11 @@ export async function registerUserController(request,response){
 
          //send verification mail
          console.log('sending email to ',email)
-         const verifyEmail = await sendEmailFun(email,'Verify Your Email for Shopify Ecommerce App',"",verificationEmailTemplate(email,verifyCode))
+         const verifyEmail = await sendEmailFun(
+            email,
+            'Verify Email OTP : '+verifyCode+' for Shopify Ecommerce App',
+            "",
+            verificationEmailTemplate(user.name,verifyCode))
           console.log(verifyEmail)
         //checking for email sending
         if(!verifyEmail){
@@ -143,6 +149,14 @@ export async function verifyEmailController(request,response) {
         const isCodeExpired = user.otpExpires< Date.now()
 
 
+            if(isCodeExpired){
+            return response.status(400).json({
+                message:"OTP expired",
+                success:false,
+                error:true
+            })
+        }
+
         if(!isCodeValid){
             user.otpAttempts+=1
             await user.save()
@@ -153,13 +167,7 @@ export async function verifyEmailController(request,response) {
             })
           
         }
-        if(isCodeExpired){
-            return response.status(400).json({
-                message:"OTP expired",
-                success:false,
-                error:true
-            })
-        }
+    
 
             user.verify_email=true
             user.otp=null
@@ -428,7 +436,10 @@ export async function removeAvatarController(request,response){
 
 //update user details
 export async function updateUserDetails(request,response) {
+    const session = await mongoose.startSession()
     try {
+        session.startTransaction()
+
         const userId = request.userId
         const{name,email,phone,password}=request.body
 
@@ -441,10 +452,13 @@ export async function updateUserDetails(request,response) {
             })
         }
 
-        const user = await UserModel.findById(userId).select('+password +otp +otpExpires +otpAttempts +verify_email')
+        const user = await UserModel.findById(userId)
+        .session(session)
+        .select('+password +otp +otpExpires +otpAttempts +verify_email')
 
         //user not found
         if(!user){
+            await session.abortTransaction()
             return response.status(400).json({
                 message:"User not found",
                 success:false,
@@ -482,7 +496,8 @@ export async function updateUserDetails(request,response) {
                 otpAttempts:isEmailChanged?0:user.otpAttempts
             },
             {
-                new:true
+                new:true,
+                session
             }
         )
         if(isEmailChanged){
@@ -490,17 +505,21 @@ export async function updateUserDetails(request,response) {
             email,
             'Verify Your Email for Shopify Ecommerce App',
             "",
-            verificationEmailTemplate(email,verifyCode)
+            verificationEmailTemplate(updatedUser.name,verifyCode)
         
         )
         if(!verifyEmail){
+            await session.abortTransaction()
+            console.log('could not send verification email')
             return response.status(500).json({
-                message:"Error sending verification email",
+                message:"Error sending verification email,Changes were not saved",
                 error:true,
                 success:false
             })
         }
         }
+
+        await session.commitTransaction()
 
         return response.status(200).json({
             message:"User updated successfully",
@@ -510,6 +529,10 @@ export async function updateUserDetails(request,response) {
         })
  
     } catch (error) {
+        console.log(error)
+
+               await session.abortTransaction()
+
         return response.status(500).json({
             message:error.message||error,
             error:true,
@@ -517,5 +540,198 @@ export async function updateUserDetails(request,response) {
         })
         
     }
+    finally{
+        await session.endSession()
+    }
     
 }
+
+
+//forgot password
+export async function forgotPasswordController(request,response){
+    try {
+        const{email}=request.body
+        const user = await UserModel.findOne({email}).select('+otp +otpExpires +otpAttempts')
+
+        if(!user){
+            return response.status(400).json({
+                message:"User not found",
+                success:false,
+                error:true
+            })
+        }
+
+        const verifyCode = Math.floor(100000 + Math.random() * 900000).toString()
+   
+
+
+        //send email first
+        const forgotPasswordEmail = await sendEmailFun(
+            email,
+            'Reset Password OTP : '+verifyCode+' for Shopify Ecommerce App',
+            "",
+            forgotPasswordEmailTemplate(user.name,verifyCode)
+         
+        )
+        if(!forgotPasswordEmail){
+            console.log('could not send forgot password email')
+            return response.status(500).json({
+                message:"Error sending forgot password email",
+                error:true,
+                success:false
+            })
+        }
+        //update only when email is sent
+             user.otp = verifyCode
+            user.otpExpires = Date.now() + 15*60*1000 // 15 minutes
+            user.otpAttempts = 0
+            await user.save()
+
+        return response.status(200).json({
+            message:"OTP sent successfully,check your email",
+            success:true,
+            error:false
+        })
+    } catch (error) {
+        return response.status(500).json({
+            message:error.message||error,
+            error:true,
+            success:false
+        })
+        
+    }
+
+}
+
+//verify forgot password otp
+export async function verifyForgotPasswordOtpController(request,response){
+    try {
+        const{email,otp}=request.body
+
+        if(!email||!otp){
+            return response.status(400).json({
+                message:"All fields are required",
+                success:false,
+                error:true
+            })
+        }
+
+        const user = await UserModel.findOne({email}).select('+otp +otpExpires +otpAttempts')
+
+        if(!user){
+            return response.status(400).json({
+                message:"User not found",
+                success:false,
+                error:true
+            })
+        }
+        if(user.otpAttempts>=5){
+            return response.status(400).json({
+                message:"Too many failed attempts. Please request a new OTP",
+                success:false,
+                error:true
+            })
+        }
+
+        const isCodeValid = user.otp===otp 
+        const isCodeExpired = user.otpExpires< Date.now()
+
+             if(isCodeExpired){
+            return response.status(400).json({
+                message:"OTP expired, please request a new one",
+                success:false,
+                error:true
+            })
+            }
+
+            if(!isCodeValid){
+                user.otpAttempts+=1
+                await user.save()
+                return response.status(400).json({
+                    message:"Invalid OTP",
+                    success:false,
+                    error:true
+                })
+            
+            }
+   
+
+        //reset otp and otpExpires
+        user.otp=null
+        user.otpExpires=null
+        user.otpAttempts=0
+        // user.password = await bcrypt.hash(password, 10) 
+        await user.save()
+
+        return response.status(200).json({
+            message:"OTP verified successfully",
+            success:true,
+            error:false
+        })
+
+    } catch (error) {
+        return response.status(500).json({
+            message:error.message||error,
+            error:true,
+            success:false
+        })
+        
+    }
+}
+
+
+
+
+
+export async function resetPasswordController(request,response){
+    try {
+        const{email,newPassword,confirmPassword}=request.body
+        if(!email||!newPassword||!confirmPassword){
+            return response.status(400).json({
+                message:"All fields are required",
+                success:false,
+                error:true
+            })
+        }
+        if(newPassword!==confirmPassword){
+            return response.status(400).json({
+                message:"Passwords do not match",
+                success:false,
+                error:true
+            })
+        }
+        const user = await UserModel.findOne({email}).select('+password +verify_email')
+        console.log(user)
+
+        if(!user){
+            return response.status(400).json({
+                message:"User not found",
+                success:false,
+                error:true
+            })
+        }
+        if(!user.verify_email){
+            return response.status(400).json({
+                message:"Please verify your email first",
+                success:false,
+                error:true
+            })
+        }
+        const hashedPassword = await bcrypt.hash(newPassword,10)
+        user.password = hashedPassword
+        await user.save()
+
+        return response.status(200).json({
+            message:"Password reset successfully",
+            success:true,
+            error:false
+        })
+        
+    } catch (error) {
+        return response.status(500).json({
+            message:error.message||error,
+            error:true,
+            success:false
+        })
+    }
+} 
