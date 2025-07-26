@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { forgotPasswordController, loginUserController, logoutController, refreshTokenController, registerUserController, removeAvatarController, resetPasswordController, updateUserDetails, userAvatarController, verifyEmailController, verifyForgotPasswordOtpController } from "../controllers/user.controller.js";
+import { forgotPasswordController, getUserDetailsController, loginUserController, logoutController, refreshTokenController, registerUserController, removeAvatarController, resetPasswordController, updateUserDetails, userAvatarController, verifyEmailController, verifyForgotPasswordOtpController } from "../controllers/user.controller.js";
 import auth from "../middleware/auth.js";
 import upload from "../middleware/multer.js";
 
@@ -16,5 +16,6 @@ userRouter.post('/verify-forgot-password-otp',auth,verifyForgotPasswordOtpContro
 userRouter.put('/reset-password',auth,resetPasswordController)
 userRouter.put('/:id',auth,updateUserDetails) //ROUTE FEELS wrong
 userRouter.post('/refresh-token',auth,refreshTokenController) 
+userRouter.get('/user-details',auth,getUserDetailsController)
 
 export default userRouter 

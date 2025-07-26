@@ -738,7 +738,6 @@ export async function resetPasswordController(request,response){
 
 
 //refresh token controller
-
 export async function refreshTokenController(request,response){
     try {
         const refreshToken = request.cookies.refreshToken || request?.headers?.authorization?.split(' ')[1] 
@@ -814,3 +813,38 @@ export async function refreshTokenController(request,response){
     }
 }
 
+
+
+//get user details
+export async function getUserDetailsController(request,response){
+    try {
+        const userId = request.userId
+
+        
+        const user = await UserModel.findById(userId).select('-refresh_token')
+ 
+
+        if(!user){
+            return response.status(404).json({
+                message:"User not found",
+                success:false,
+                error:true
+            })
+        }
+
+        return response.status(200).json({
+            message:"User details fetched successfully",
+            success:true,
+            error:false,
+            data:user
+        })
+        
+    } catch (error) {
+        return response.status(500).json({
+            message:error.message||error,
+            error:true,
+            success:false
+        })
+        
+    }
+}
