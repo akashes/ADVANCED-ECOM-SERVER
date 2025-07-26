@@ -682,7 +682,7 @@ export async function verifyForgotPasswordOtpController(request,response){
 
 
 
-
+// reset password 
 export async function resetPasswordController(request,response){
     try {
         const{email,newPassword,confirmPassword}=request.body
@@ -735,3 +735,82 @@ export async function resetPasswordController(request,response){
         })
     }
 } 
+
+
+//refresh token controller
+
+export async function refreshTokenController(request,response){
+    try {
+        const refreshToken = request.cookies.refreshToken || request?.headers?.authorization?.split(' ')[1] 
+
+        if(!refreshToken){
+            return response.status(401).json({
+                message:"Provide refresh token",
+                success:false,
+                error:true
+            })
+        }
+
+        const decoded = jwt.verify(refreshToken,process.env.REFRESH_SECRET)
+
+        if(!decoded){
+            return response.status(401).json({
+                message:"Unauthorized access",
+                success:false,
+                error:true
+            })
+        }
+
+        const user = await UserModel.findById(decoded.id)
+
+        if(!user){
+            return response.status(404).json({
+                message:"User not found",
+                success:false,
+                error:true
+            })
+        }
+
+        // if(user.refresh_token!== refreshToken){
+        //     return response.status(403).json({
+        //         message:"Refresh token mismatch",
+        //         success:false,
+        //         error:true
+        //     })
+        // }
+
+        const newAccessToken = await generateAccessToken(user._id)
+        // const newRefreshToken = await generateRefreshToken(user._id)
+
+ 
+
+        const cookiesOption={
+            httpOnly:true,
+            secure:true,
+            sameSite:'none'
+        }
+        
+        response.cookie('accessToken',newAccessToken,cookiesOption)
+        // response.cookie('refreshToken',newRefreshToken,cookiesOption)
+
+        return response.status(200).json({
+            message:"New Access Token generated successfully",
+            success:true,
+            error:false,
+            data:{
+                accessToken:newAccessToken,
+                // refreshToken:newRefreshToken
+
+            }
+        })
+
+    } catch (error) {
+        return response.status(500).json({
+            message:error.message||error,
+            error:true,
+            success:false
+        })
+        
+    }
+}
+
