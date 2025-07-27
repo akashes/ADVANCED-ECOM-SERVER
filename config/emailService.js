@@ -7,8 +7,9 @@ console.log(process.env.EMAIL,process.env.EMAIL_PASS)
 // configure SMTP transporter
  const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
+    port: 587,
+    secure: false,
+    requireTLS: true,
     auth: {
         user: process.env.EMAIL,
         pass: process.env.EMAIL_PASS
