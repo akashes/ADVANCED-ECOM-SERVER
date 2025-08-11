@@ -33,9 +33,10 @@ const addressSchema= new mongoose.Schema({
         type:String,
         default:null,
         validate:{
-            validator:(v)=>{
-                  return /^[0-9]{10,15}$/.test(v); // basic mobile number validation
-            },
+            validator: (v) => {
+                return /^\+?[0-9]{10,15}$/.test(v); 
+                },
+
             message:'Please enter a valid mobile number'
         }
     },
@@ -44,11 +45,29 @@ const addressSchema= new mongoose.Schema({
         type:Boolean,
         default:true
     },
+    default:{
+        type:Boolean,
+        default:false
+    },
+    selected:{
+        type:Boolean,
+        default:false
+    },
+    landmark:{
+        type:String,
+        default:null
+    },
+    address_type:{
+        type:String,
+        enum:['home','work','other'],
+        default:'HOME'
+    },
+
     userId:{
         type:mongoose.Schema.ObjectId,
-        default:''
-        // ref:'User',
-        // required:[true,'User is required']
+        default:'',
+        ref:'User',
+        required:[true,'User is required']
     }
 },{timestamps:true})
 

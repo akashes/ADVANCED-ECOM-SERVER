@@ -54,12 +54,17 @@ export const uploadProductImages = async (request, response) => {
           fs.unlinkSync(file.path);
         }
 
-        imageLinks.push({
-          url: null,
-          public_id: null,
-          error: uploadErr.message,
-          file: file.originalname
-        });
+        // imageLinks.push({
+        //   url: null,
+        //   public_id: null,
+        //   error: uploadErr.message,
+        //   file: file.originalname
+        // });
+        return response.status(500).json({
+          message: "Error uploading images",
+          success: false,
+          error: uploadErr.message
+        })
       }
     }
 
@@ -67,7 +72,7 @@ export const uploadProductImages = async (request, response) => {
       message: "Product images upload process completed",
       success: true,
       error: false,
-      data: imageLinks
+      productImages: imageLinks
     });
 
   } catch (error) {
@@ -112,7 +117,17 @@ export const deleteProductImage=async(request,response)=>{
 export const createProduct=async(request,response)=>{
     try {
 
+        const userId=request.userId
         const productData = request.body
+        //checking for duplicate name
+        const existingProduct = await ProductModel.findOne({ name: productData.name });
+        if (existingProduct) {
+            return response.status(400).json({
+                message: "Product with the same name already exists",
+                success: false,
+                error: true
+            });
+        }
         if(!productData.category){
             return response.status(400).json({
                 message: "Category not found",
@@ -120,7 +135,8 @@ export const createProduct=async(request,response)=>{
                 error: true
             });
         }
-        if(!productData.name || !productData.description || !productData.price  ||!productData.catName || !productData.images || !productData.countInStock){
+        if(!productData.name || !productData.description || !productData.price  ||!productData.catName ||
+              !productData.countInStock){
             return response.status(400).json({
                 message: "All fields are required",
                 success: false,
@@ -131,7 +147,7 @@ export const createProduct=async(request,response)=>{
             lower: true,
         });
 
-        const newProduct = new ProductModel(productData);
+        const newProduct = new ProductModel({ ...productData, createdBy: userId });
         await newProduct.save();
 
 
@@ -144,6 +160,7 @@ export const createProduct=async(request,response)=>{
         });
         
     } catch (error) {
+        console.log(error) 
         return response.status(500).json({
             message: "Error creating product",
             success: false,
@@ -154,59 +171,117 @@ export const createProduct=async(request,response)=>{
 }
 
 //get all products
-export const getAllProducts = async (request, response) => {
-    try {
+// export const getAllProducts = async (request, response) => {
+//     try {
 
-        const page = Math.max(parseInt(request.query.page) || 1, 1);
-    const perPage = Math.max(parseInt(request.query.perPage) || 10, 1);
+//         const page = Math.max(parseInt(request.query.page) || 1, 1);
+//     const perPage = Math.max(parseInt(request.query.perPage) || 10, 1);
 
-        const totalProducts = await ProductModel.countDocuments();
-        const totalPages = Math.ceil(totalProducts / perPage);
+//         const totalProducts = await ProductModel.countDocuments();
+//         const totalPages = Math.ceil(totalProducts / perPage);
 
-        if (totalPages>0 && page>totalPages) {
-            return response.status(400).json({
-                message: "Page number exceeds total pages",
-                success: false,
-                error: true
-            });
-        }
+//         if (totalPages>0 && page>totalPages) {
+//             return response.status(400).json({
+//                 message: "Page number exceeds total pages",
+//                 success: false,
+//                 error: true
+//             });
+//         }
 
-            const products = await ProductModel.find()
-                .populate('category')
-                .skip((page - 1) * perPage)
-                .limit(perPage)
-                .sort({ createdAt: -1 })
-                .exec();
+//             const products = await ProductModel.find()
+//                 .populate('category')
+//                 .skip((page - 1) * perPage)
+//                 .limit(perPage)
+//                 .sort({ createdAt: -1 })
+//                 .exec();
             
 
 
 
-        if (!products || products.length === 0) {
-            return response.status(404).json({
-                message: "No products found",
-                success: false,
-                error: true
-            });
-        }
+//         if (!products || products.length === 0) {
+//             return response.status(404).json({
+//                 message: "No products found",
+//                 success: false,
+//                 error: true
+//             });
+//         }
         
-        return response.status(200).json({
-        message: "Products fetched successfully",
-        success: true,
-        error: false,
-        products,
-        totalProducts,
-        totalPages,
-        currentPage: page
-        });
-    } catch (error) {
-        console.error("Error fetching products:", error);
-        return response.status(500).json({
-        message: "Server error while fetching products",
-        success: false,
-        error: error.message
-        });
+//         return response.status(200).json({
+//         message: "Products fetched successfully",
+//         success: true,
+//         error: false,
+//         products,
+//         totalProducts,
+//         totalPages,
+//         currentPage: page
+//         });
+//     } catch (error) {
+//         console.error("Error fetching products:", error);
+//         return response.status(500).json({
+//         message: "Server error while fetching products",
+//         success: false,
+//         error: error.message
+//         });
+//     }
+// }
+
+
+//get all products with category filter
+export const getAllProductsWithCatFilter = async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const perPage = Math.max(parseInt(req.query.perPage) || 10, 1);
+    const { category, subCatId, thirdSubCatId,minRating, search } = req.query;
+
+    const filter = {};
+
+    if (category && mongoose.Types.ObjectId.isValid(category)) {
+      filter.category = new mongoose.Types.ObjectId(category);
     }
-}
+    if (subCatId && mongoose.Types.ObjectId.isValid(subCatId)) {
+      filter.subCatId = new mongoose.Types.ObjectId(subCatId);
+    }
+    if (thirdSubCatId && mongoose.Types.ObjectId.isValid(thirdSubCatId)) {
+      filter.thirdSubCatId = new mongoose.Types.ObjectId(thirdSubCatId);
+    }
+    if (search) {
+      filter.name = { $regex: search, $options: 'i' };
+    }
+    if(minRating){
+        filter.rating = { $gte: Number(minRating) };
+    }
+
+    console.log("Applied filter:", filter);
+
+    const skip = (page - 1) * perPage;
+
+    const [products, totalProducts] = await Promise.all([
+      ProductModel.find(filter)
+        .skip(skip)
+        .limit(Number(perPage))
+        .populate("category subCatId thirdSubCatId")
+        .sort({ createdAt: -1 }),
+      ProductModel.countDocuments(filter)
+    ]);
+
+    res.status(200).json({
+      message: "Products fetched successfully",
+      success: true,
+      error: false,
+      products,
+      totalProducts,
+      totalPages: Math.ceil(totalProducts / perPage),
+      currentPage: Number(page)
+    });
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    res.status(500).json({
+      message: "Server error while fetching products",
+      success: false,
+      error: error.message
+    });
+  }
+};
 
 //get product by categoryId
 export const getProductsByCategory = async (request, response) => {
@@ -803,7 +878,7 @@ export const deleteProduct =async(request,response)=>{
             message: "Product deleted successfully",
             success: true,
             error: false,
-            product
+            id: productId
         });
         
     } catch (error) {
@@ -855,10 +930,31 @@ export const getProduct =async(request,response)=>{
     }
 }
 
+//delete product image during creation
+export async function deleteProductImageDuringCreation(request, response) {
+    try {
+        const { public_id } = request.query;
+        // Delete image from Cloudinary
+        await cloudinary.uploader.destroy(public_id);
+        return response.status(200).json({
+            message: "Image deleted successfully",
+            success: true,
+            error: false,
+            id: public_id
+        });
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            success: false,
+            error: true
+        });
+    }
+}
+
 //delete product image
 export async function deleteProductImageController(request, response) {
     try {
-        const { public_id } = request.params;
+        const { public_id } = request.query;
         console.log("Deleting product image with public_id:", public_id);
 
         if (!public_id) {
@@ -872,6 +968,7 @@ export async function deleteProductImageController(request, response) {
         // Find the product containing the image
        
         const product = await ProductModel.findOne({"images.public_id": public_id });
+        console.log(product)
 
         if (!product) {
             return response.status(404).json({
@@ -895,7 +992,7 @@ export async function deleteProductImageController(request, response) {
         // Delete image from Cloudinary
         await cloudinary.uploader.destroy(public_id);
 
-        // Remove image from product document
+        // Remove image from product document 
         product.images.splice(imageIndex, 1);
         await product.save();
 
@@ -903,8 +1000,8 @@ export async function deleteProductImageController(request, response) {
             message: "Product image deleted successfully",
             success: true,
             error: false,
-            data: product
-        });
+            id:public_id
+        }); 
 
     } catch (error) {
         console.error("Error deleting product image:", error);
@@ -940,48 +1037,48 @@ export async function updateProductController(request, response) {
             });
         }
 
-        let images = [];
-        if (Array.isArray(request.files)) {
-            images = request.files;
-        }
+        // let images = [];
+        // if (Array.isArray(request.files)) {
+        //     images = request.files;
+        // }
 
         const updates = {
             ...request.body
         };
 
-        if (images.length > 0) {
-            const imageLinks = [];
-            const options = {
-                use_filename: true,
-                unique_filename: false,
-                overwrite: true,
-                folder: 'products'
-            };
+        // if (images.length > 0) {
+        //     const imageLinks = [];
+        //     const options = {
+        //         use_filename: true,
+        //         unique_filename: false,
+        //         overwrite: true,
+        //         folder: 'product-images'
+        //     };
 
-            try {
-                for (let i = 0; i < images.length; i++) {
-                    const filePath = images[i].path;
-                    const result = await cloudinary.uploader.upload(filePath, options);
-                    imageLinks.push({
-                        url: result.secure_url,
-                        public_id: result.public_id
-                    });
-                }
-            } catch (error) {
-                console.error('Error uploading to Cloudinary:', error);
-                return response.status(500).json({
-                    message: "Error uploading images",
-                    success: false,
-                    error: true
-                });
-            } finally {
-                await Promise.all(images.map(file => fs.unlink(file.path)));
-            }
+        //     try {
+        //         for (let i = 0; i < images.length; i++) {
+        //             const filePath = images[i].path;
+        //             const result = await cloudinary.uploader.upload(filePath, options);
+        //             imageLinks.push({
+        //                 url: result.secure_url,
+        //                 public_id: result.public_id
+        //             });
+        //         }
+        //     } catch (error) {
+        //         console.error('Error uploading to Cloudinary:', error);
+        //         return response.status(500).json({
+        //             message: "Error uploading images",
+        //             success: false,
+        //             error: true
+        //         });
+        //     } finally {
+        //         await Promise.all(images.map(file => fs.unlink(file.path)));
+        //     }
 
-            if (imageLinks.length > 0) {
-                updates.images = [...product.images, ...imageLinks];
-            }
-        }
+        //     if (imageLinks.length > 0) {
+        //         updates.images = [...product.images, ...imageLinks];
+        //     }
+        // }
 
         const updatedProduct = await ProductModel.findByIdAndUpdate(
             productId,
@@ -1004,3 +1101,141 @@ export async function updateProductController(request, response) {
         });
     }
 }
+
+
+export async function deleteMultipleProductsController(request,response){
+    const{ids} = request.body;
+    try {
+        if(!ids || !Array.isArray(ids) || ids.length === 0){
+            return response.status(400).json({
+                message: "Product IDs are required",
+                success: false,
+                error: true
+            });
+        }
+        //deleting images
+        try {
+            const products = await ProductModel.find({_id: {$in:ids}});
+            for (const product of products) {
+                for (const image of product.images) {
+                    await cloudinary.uploader.destroy(image.public_id);
+                }
+            }
+            
+        } catch (error) {
+            console.error("Error deleting images:", error);
+            return response.status(500).json({
+                message: "Error deleting images",
+                success: false,
+                error: true
+            });
+            
+        }
+        const deletedProducts = await ProductModel.deleteMany({_id: {$in:ids}});
+        return response.status(200).json({
+            message: "Products deleted successfully",
+            success: true,
+            error: false,
+            deletedProducts
+        });
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            success: false,
+            error: true
+        });
+    }
+}
+
+
+export const uploadProductImagesDuringUpdation = async (request, response) => {
+  try {
+    const images = request.files;
+    const{productId} = request.query
+
+    if (!productId) {
+      return response.status(400).json({
+        message: "Product ID is required",
+        success: false,
+        error: true
+      });
+    }
+
+    const product = await ProductModel.findById(productId);
+    if (!product) {
+      return response.status(404).json({
+        message: "Product not found",
+        success: false,
+        error: true
+      });
+    }
+
+    if (!images || images.length === 0) {
+      return response.status(400).json({
+        message: "No images uploaded",
+        success: false,
+        error: true
+      });
+    }
+
+    const options = {
+      use_filename: true,
+      unique_filename: true, 
+      folder: 'product-images'
+    };
+
+    const imageLinks = [];
+
+    for (const file of images) {
+      try {
+        const result = await cloudinary.uploader.upload(file.path, options);
+
+        imageLinks.push({
+          url: result.secure_url,
+          public_id: result.public_id
+        });
+
+        fs.unlinkSync(file.path);
+
+      } catch (uploadErr) {
+        console.error(`Cloudinary upload failed for ${file.originalname}:`, uploadErr.message);
+
+        //  Still delete the file even if upload fails
+        if (fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+
+        // imageLinks.push({
+        //   url: null,
+        //   public_id: null,
+        //   error: uploadErr.message,
+        //   file: file.originalname
+        // });
+        return response.status(500).json({
+          message: "Error uploading images",
+          success: false,
+          error: uploadErr.message
+        })
+      }
+    }
+
+    //updating images in products collection
+    product.images = [...product.images, ...imageLinks];
+    await product.save();
+
+    return response.status(200).json({
+      message: "Product images upload process completed",
+      success: true,
+      error: false,
+      productImages: imageLinks
+    });
+
+  } catch (error) {
+    console.error("Upload controller error:", error);
+    return response.status(500).json({
+      message: "Server error during image upload",
+      success: false,
+      error: error.message
+    });
+  }
+};

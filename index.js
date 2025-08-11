@@ -12,11 +12,15 @@ import categoryRouter from './routes/category.route.js'
 import productRouter from './routes/product.route.js'
 import cartRouter from './routes/cart.route.js'
 import myListRouter from './routes/mylist.route.js'
+import addressRouter from './routes/address.route.js'
 
 
  
 const app = express()
-app.use(cors())
+app.use(cors({
+    origin:['http://localhost:5174','http://localhost:5173'],
+    credentials:true
+}))
 // app.options('/*',cors())  // cors will manage this by default, but  if any cors errors occurs try uncommenting this 
 app.use(express.json())
 app.use(cookieParser())
@@ -38,7 +42,7 @@ app.use('/api/category',categoryRouter)
 app.use('/api/product', productRouter)
 app.use('/api/cart',cartRouter)
 app.use('/api/myList',myListRouter)
-
+app.use('/api/address',addressRouter)
 
 
 app.use((err, req, res, next) => {

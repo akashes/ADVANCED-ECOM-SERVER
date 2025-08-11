@@ -1,4 +1,6 @@
 import mongoose, { mongo } from "mongoose";
+import jwt from 'jsonwebtoken'
+console.log('REFRESH_TOKEN_SECRET IN MODEL',process.env.REFRESH_TOKEN_SECRET)
 
 const userSchema =new  mongoose.Schema({
     name:{
@@ -21,16 +23,21 @@ const userSchema =new  mongoose.Schema({
         select:false
     },
     avatar:{
-        type:String,
-        default:''
+        url:{
+            type:String,
+            default:""
+        },
+        public_id:{
+            type:String,
+            default:""
+        }
     },
     mobile:{
-        type:Number,
+        type:String,
         default:null
     },
     verify_email:{
         type:Boolean,
-        default:false
 
     },
     access_token:{
@@ -86,9 +93,36 @@ const userSchema =new  mongoose.Schema({
         type:String,
         enum:['USER','ADMIN'],
         default:'USER'
+     },
+     selected_address:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:'Address'
      }
 
 },{timestamps:true})
+
+userSchema.methods.generateAccessToken = function(){
+    return jwt.sign({
+        id:this._id,
+        // name:this.name,
+        // email:this.email,
+        // role:this.role
+    },
+    process.env.ACCESS_TOKEN_SECRET,
+    {expiresIn:process.env.ACCESS_TOKEN_EXPIRY})
+}
+userSchema.methods.generateRefreshToken = function(){
+    return jwt.sign({
+        id: this._id,
+        // name: this.name,
+        // email: this.email,
+        // role: this.role
+    }, process.env.REFRESH_TOKEN_SECRET,
+     {
+        expiresIn: process.env.REFRESH_TOKEN_EXPIRY
+    }
+)
+}
 
 const UserModel = mongoose.model('User',userSchema)
 export default UserModel

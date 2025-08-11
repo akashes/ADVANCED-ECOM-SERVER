@@ -93,11 +93,15 @@ const productSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
-    discount:{
-        type: Number,
-        default: 0,
-        min: [0, 'Discount cannot be negative'],
-        max: [100, 'Discount cannot exceed 100']
+    // discount:{
+    //     type: Number,
+    //     default: 0,
+    //     min: [0, 'Discount cannot be negative'],
+    //     max: [100, 'Discount cannot exceed 100']
+    // },
+    sale:{
+        type:Number,
+        default:0
     },
 
     createdBy:{
@@ -105,8 +109,8 @@ const productSchema = new mongoose.Schema({
         ref: 'User',
         required: [true, 'Created by user ID is required']
     },
-    sizes:[String],
-    colors:[String],
+    // sizes:[String],
+    // colors:[String],
     attributes:{
         type:Map,
         of:mongoose.Schema.Types.Mixed,
