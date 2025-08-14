@@ -22,5 +22,4 @@ categoryRouter.put('/upload-category-image',auth,upload.array('categoryImages'),
 categoryRouter.delete('/delete-category-image',auth,deleteCategoryImageDuringCreation)
 // categoryRouter.delete('/delete-category-image-edit',auth,deleteCategoryImageDuringEdit)
 
-
 export default categoryRouter;    

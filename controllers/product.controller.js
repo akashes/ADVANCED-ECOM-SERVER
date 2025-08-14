@@ -260,7 +260,7 @@ export const getAllProductsWithCatFilter = async (req, res) => {
         .skip(skip)
         .limit(Number(perPage))
         .populate("category subCatId thirdSubCatId")
-        .sort({ createdAt: -1 }),
+        .sort({ updatedAt: -1 }),
       ProductModel.countDocuments(filter)
     ]);
 
@@ -1104,8 +1104,8 @@ export async function updateProductController(request, response) {
 
 
 export async function deleteMultipleProductsController(request,response){
-    const{ids} = request.body;
     try {
+        const ids = request.body.ids
         if(!ids || !Array.isArray(ids) || ids.length === 0){
             return response.status(400).json({
                 message: "Product IDs are required",
@@ -1136,7 +1136,7 @@ export async function deleteMultipleProductsController(request,response){
             message: "Products deleted successfully",
             success: true,
             error: false,
-            deletedProducts
+            ids
         });
     } catch (error) {
         return response.status(500).json({
@@ -1239,3 +1239,31 @@ export const uploadProductImagesDuringUpdation = async (request, response) => {
     });
   }
 };
+
+export const getPopularProductsByCategory=async(request,response)=>{
+    console.log('here')
+    try {
+    const { categoryId } = request.params;
+    const products = await ProductModel.find({ category:categoryId })
+      .sort({ sale: -1 }) // or any metric like salesCount
+      .limit(6);
+      
+      if(!products){
+        return response.status(404).json({
+          message: "No products found",
+          success: false,
+          error: true
+        });
+      }
+      console.log(products)
+
+    response.json({
+      success: true,
+      error:false,
+      products,
+      categoryId
+    });
+  } catch (err) {
+    response.status(500).json({ success: false, message: 'Server error' });
+  }
+}

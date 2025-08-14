@@ -5,7 +5,7 @@ const productSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Product name is required'],
         trim: true,
-        maxLength: [100, 'Product name should not exceed 100 characters']
+        maxLength: [300, 'Product name should not exceed 100 characters']
     },
     description:{
         type: String,
@@ -128,7 +128,7 @@ const productSchema = new mongoose.Schema({
 
 
 
-})
+},{timestamps:true})
 
 const ProductModel = mongoose.model('Product', productSchema);
 export default ProductModel;

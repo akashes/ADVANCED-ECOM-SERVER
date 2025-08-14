@@ -1,7 +1,8 @@
 import express from 'express';
 import upload from '../middleware/multer.js';
-import { createProduct, deleteMultipleProductsController, deleteProduct, deleteProductImageController, deleteProductImageDuringCreation, getAllProductsWithCatFilter, getFeaturedProducts, getProduct, getProductCount, getProductsByCategory, getProductsByCategoryName, getProductsByPrice, getProductsByPriceController, getProductsByRating, getProductsBySubCategory, getProductsBySubCategoryName, getProductsByThirdSubCategory, getProductsByThirdSubCategoryName, updateProductController, uploadProductImages, uploadProductImagesDuringUpdation } from '../controllers/product.controller.js';
+import { createProduct, deleteMultipleProductsController, deleteProduct, deleteProductImageController, deleteProductImageDuringCreation, getAllProductsWithCatFilter, getFeaturedProducts, getPopularProductsByCategory, getProduct, getProductCount, getProductsByCategory, getProductsByCategoryName, getProductsByPrice, getProductsByPriceController, getProductsByRating, getProductsBySubCategory, getProductsBySubCategoryName, getProductsByThirdSubCategory, getProductsByThirdSubCategoryName, updateProductController, uploadProductImages, uploadProductImagesDuringUpdation } from '../controllers/product.controller.js';
 import auth from '../middleware/auth.js';
+import { get } from 'http';
 
 const productRouter = express.Router();
 
@@ -38,5 +39,6 @@ productRouter.delete('/delete-multiple-products',deleteMultipleProductsControlle
 productRouter.post('/upload-product-images-during-updation',auth,upload.array('productImages',10), uploadProductImagesDuringUpdation);
 productRouter.put('/update-product/:productId',auth,updateProductController)
 
+productRouter.get('/get-popular-products-by-category/:categoryId',getPopularProductsByCategory)
 
 export default productRouter

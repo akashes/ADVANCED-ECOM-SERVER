@@ -370,8 +370,7 @@ export async function createCategoryController(request, response) {
 //get categories
 export async function getCategoryMapController(request, response) {
     try {
-        const categories = await CategoryModel.find().sort({createdAt:-1})
-        console.log(categories)
+        const categories = await CategoryModel.find().sort()
         //building category map of structure     id -> full_data + children
         const categoryMap ={}
         categories.forEach(cat=>{
@@ -386,6 +385,7 @@ export async function getCategoryMapController(request, response) {
                 rootCategories.push(categoryMap[cat._id])
             }
         })
+        console.log(rootCategories)
 
         return response.status(200).json({
             message: "Categories fetched successfully",
