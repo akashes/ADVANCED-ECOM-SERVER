@@ -12,6 +12,14 @@ cloudinary.config({
 
 export const createHomeSlidesController=async(request,response)=>{
     try {
+        const existingSlides = HomeSlidesModel.find()
+        if((await existingSlides).length>=10){
+            return response.status(400).json({
+                message:"Maximum 10 home slides allowed",
+                success:false,
+                error:true
+            })
+        }
         if(!request.file){
             return response.status(400).json({
                 message:"Image is required",
@@ -72,9 +80,8 @@ export const createHomeSlidesController=async(request,response)=>{
 }
 
 export const getAllHomeSlidesController=async(request,response)=>{
-    console.log('inide ')
     try {
-        const homeSlides=await HomeSlidesModel.find({});
+        const homeSlides=await HomeSlidesModel.find({}).sort({createdAt:-1});
         return response.status(200).json({
             message:"Home slides fetched successfully",
             success:true,
@@ -93,6 +100,14 @@ export const getAllHomeSlidesController=async(request,response)=>{
 
 export const deleteHomeSlide=async(request,response)=>{
     try {
+        const existingSlides =await HomeSlidesModel.find()
+        if(existingSlides.length<=5){
+            return response.status(400).json({
+                message:"Minimum 5 home slides required",
+                success:false,
+                error:true
+            })
+        }
         const{id}=request.query;
         if(!id){
             return response.status(400).json({

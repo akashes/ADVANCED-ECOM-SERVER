@@ -8,7 +8,6 @@ const homeSlidesRouter = Router();
 
 homeSlidesRouter.post('/create',auth,upload.single('image'),createHomeSlidesController)
 homeSlidesRouter.get('/',getAllHomeSlidesController)
-// homeSlidesRouter.put('/update/:id',updateHomeSlidesController)
-homeSlidesRouter.delete('/',deleteHomeSlide)
+homeSlidesRouter.delete('/',auth,deleteHomeSlide)
 
 export default homeSlidesRouter

@@ -231,7 +231,7 @@ export const getAllProductsWithCatFilter = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const perPage = Math.max(parseInt(req.query.perPage) || 10, 1);
-    const { category, subCatId, thirdSubCatId,minRating, search } = req.query;
+    const { category, subCatId, thirdSubCatId,minRating, search ,isFeatured} = req.query;
 
     const filter = {};
 
@@ -249,6 +249,9 @@ export const getAllProductsWithCatFilter = async (req, res) => {
     }
     if(minRating){
         filter.rating = { $gte: Number(minRating) };
+    }
+    if(isFeatured){
+        filter.isFeatured = isFeatured
     }
 
     console.log("Applied filter:", filter);
@@ -815,6 +818,7 @@ export const getFeaturedProducts = async (request, response) => {
         const featuredProducts = await ProductModel.find({ isFeatured: true })
         .populate('category')
             .sort({ createdAt: -1 })
+            .limit(15)
         
 
         if(!featuredProducts || featuredProducts.length === 0) {
@@ -1267,3 +1271,24 @@ export const getPopularProductsByCategory=async(request,response)=>{
     response.status(500).json({ success: false, message: 'Server error' });
   }
 }
+
+
+export const getLatestProducts = async (req, res) => {
+  try {
+    // const limit = parseInt(req.query.limit) || 10;
+
+    const products = await ProductModel.find()
+      .sort({ createdAt: -1 }) 
+      .limit(15);
+
+    res.status(200).json({
+      message: "Latest products fetched successfully",
+      success: true,
+      error: false,
+      products
+    });
+  } catch (error) {
+    console.error("Error fetching latest products:", error);
+    res.status(500).json({ message: "Server error while fetching latest products",success:false,error:true });
+  }
+};
