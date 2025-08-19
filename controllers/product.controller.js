@@ -146,6 +146,19 @@ export const createProduct=async(request,response)=>{
         productData.slug =  slugify(productData.name, {
             lower: true,
         });
+        //calculating discount using old and new Price
+        if(productData.oldPrice && productData.price){
+            if(Number(productData.price) < Number(productData.oldPrice)){
+                
+            const discount = ((Number(productData.oldPrice) - Number(productData.price)) / Number(productData.oldPrice)) * 100;
+           productData.discount = Math.floor(discount);
+
+
+                console.log(discount)
+            }
+        }
+        console.log(productData)
+
 
         const newProduct = new ProductModel({ ...productData, createdBy: userId });
         await newProduct.save();
@@ -231,7 +244,7 @@ export const getAllProductsWithCatFilter = async (req, res) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const perPage = Math.max(parseInt(req.query.perPage) || 10, 1);
-    const { category, subCatId, thirdSubCatId,minRating, search ,isFeatured} = req.query;
+    const { category, subCatId, thirdSubCatId,minRating, search ,isFeatured,discount} = req.query;
 
     const filter = {};
 
@@ -252,6 +265,9 @@ export const getAllProductsWithCatFilter = async (req, res) => {
     }
     if(isFeatured){
         filter.isFeatured = isFeatured
+    }
+    if(discount){
+        filter.discount = { $gte: Number(discount) };
     }
 
     console.log("Applied filter:", filter);
@@ -1040,6 +1056,7 @@ export async function updateProductController(request, response) {
                 error: true
             });
         }
+        
 
         // let images = [];
         // if (Array.isArray(request.files)) {
@@ -1049,6 +1066,18 @@ export async function updateProductController(request, response) {
         const updates = {
             ...request.body
         };
+        const {oldPrice,price} = request.body;  
+            //calculating discount using old and new Price
+     if(oldPrice && price){
+            if(Number(price) < Number(oldPrice)){
+                
+            const discount = ((Number(oldPrice) - Number(price)) / Number(oldPrice)) * 100;
+           updates.discount = Math.floor(discount);
+
+
+            }
+        }
+        console.log(updates)
 
         // if (images.length > 0) {
         //     const imageLinks = [];
@@ -1290,5 +1319,127 @@ export const getLatestProducts = async (req, res) => {
   } catch (error) {
     console.error("Error fetching latest products:", error);
     res.status(500).json({ message: "Server error while fetching latest products",success:false,error:true });
+  }
+};
+
+
+
+//filter products
+export const getProductsByFilter = async (req, res) => {
+    console.log(req.query)
+    
+  try {
+    console.log('inside filter products ')
+    console.log(req.query)
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const perPage = Math.max(parseInt(req.query.perPage) || 10, 1);
+    const { category, subCatId, thirdSubCatId, rating, search,
+         isFeatured, sort,minPrice,maxPrice,discount } = req.query;
+
+    const filter = {};
+
+if (category) {
+  let categories = [];
+  if (Array.isArray(category)) {
+    categories = category;
+  } else if (typeof category === "string") {
+    categories = category.split(","); // handle "id1,id2"
+  }
+
+  filter.category = {
+    $in: categories
+      .filter(mongoose.Types.ObjectId.isValid)
+      .map(id => new mongoose.Types.ObjectId(id))
+  };
+}
+
+    if (subCatId) {
+      const subCategories = Array.isArray(subCatId) ? subCatId : [subCatId];
+      filter.subCatId = { $in: subCategories.filter(mongoose.Types.ObjectId.isValid).map(id => new mongoose.Types.ObjectId(id)) };
+    }
+
+    if (thirdSubCatId) {
+      const thirdSubCategories = Array.isArray(thirdSubCatId) ? thirdSubCatId : [thirdSubCatId];
+      filter.thirdSubCatId = { $in: thirdSubCategories.filter(mongoose.Types.ObjectId.isValid).map(id => new mongoose.Types.ObjectId(id)) };
+    }
+
+    if (search) {
+      filter.name = { $regex: search, $options: 'i' };
+    }
+    if (rating) {
+      filter.rating = { $gte: Number(rating) };
+    }
+    if (isFeatured) {
+      filter.isFeatured = isFeatured;
+    }
+    if(discount){
+        filter.discount = { $gte: Number(discount) };
+    }
+
+    if(minPrice || maxPrice){
+        filter.price = {};
+        if(minPrice) filter.price.$gte= Number(minPrice);
+        if(maxPrice) filter.price.$lte= Number(maxPrice);
+    
+    }
+
+    console.log("Applied filter:", filter);
+
+    const skip = (page - 1) * perPage;
+
+    let sortOption = { updatedAt: -1 }; // default
+    if (sort === "price_asc") sortOption = { price: 1 };
+    if (sort === "price_desc") sortOption = { price: -1 };
+    if (sort === "name_asc") sortOption = { name: 1 };
+    if (sort === "name_desc") sortOption = { name: -1 };
+    if(sort==='sales_desc') sortOption = { sale: -1 };
+    if(sort==="newest") sortOption = { createdAt: -1 };
+    if(sort==="rating_desc") sortOption = { rating: -1 };
+    if(sort==="discount_desc") sortOption = { discount: -1 };
+   
+
+    const [products, totalProducts] = await Promise.all([
+      ProductModel.find(filter)
+        .skip(skip)
+        .limit(Number(perPage))
+        .populate("category subCatId thirdSubCatId")
+        .sort(sortOption),
+      ProductModel.countDocuments(filter),
+    ]);
+
+
+    
+//     let grouped=[]
+// if (category) {
+//   let categories = [];
+//   if (Array.isArray(category)) {
+//     categories = category;
+//   } else if (typeof category === "string") {
+//     categories = category.split(","); // handle "id1,id2"
+//   }
+//   categories = [...categories].reverse()
+//   categories.forEach(catId=>{
+//       const catProducts = products.filter(p => p.category.equals(catId));
+//   grouped.push(...catProducts);
+//   })
+// }
+ 
+
+    res.status(200).json({
+      message: "Products fetched successfully",
+      success: true,
+      error: false,
+      products,
+      totalProducts,
+      totalPages: Math.ceil(totalProducts / perPage),
+      currentPage: Number(page), 
+    });
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    res.status(500).json({
+      message: "Server error while fetching products",
+      success: false,
+      error: error.message,
+    });
   }
 };

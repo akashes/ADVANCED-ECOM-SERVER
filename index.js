@@ -15,6 +15,7 @@ import myListRouter from './routes/mylist.route.js'
 import addressRouter from './routes/address.route.js'
 import homeSlidesRouter from './routes/homeSlides.route.js'
 import bannerV1Router from './routes/bannerV1.route.js'
+import blogRouter from './routes/blog.route.js'
 
 
  
@@ -47,6 +48,8 @@ app.use('/api/myList',myListRouter)
 app.use('/api/address',addressRouter)
 app.use('/api/homeSlides',homeSlidesRouter) 
 app.use('/api/bannerV1',bannerV1Router) 
+app.use('/api/blog',blogRouter) 
+
  
 
 app.use((err, req, res, next) => {

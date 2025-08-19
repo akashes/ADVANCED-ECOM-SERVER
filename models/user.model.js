@@ -40,6 +40,7 @@ const userSchema =new  mongoose.Schema({
         type:Boolean,
 
     },
+
     access_token:{
         type:String,
         default:""
@@ -93,6 +94,10 @@ const userSchema =new  mongoose.Schema({
         type:String,
         enum:['USER','ADMIN'],
         default:'USER'
+     },
+     signUpWithGoogle:{
+            type:Boolean,
+            default:false,
      },
      selected_address:{
         type:mongoose.Schema.Types.ObjectId,

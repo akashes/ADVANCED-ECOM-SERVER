@@ -105,6 +105,120 @@ export async function registerUserController(request,response){
         })
     }
 }
+export async function authWithGoogle(request,response){
+    try {
+        const {name,email,password,avatar,mobile}=request.body
+
+        try {
+            const existingUser = await UserModel.findOne({email})
+            if(!existingUser){
+                const user = await UserModel.create({
+                    name,
+                    email,
+                    password:"google-auth",
+                    avatar:{url:avatar},
+                    mobile,
+                    verify_email:true,
+                    signUpWithGoogle:true
+
+                })
+                              const accessToken = user.generateAccessToken()
+    const refreshToken = user.generateRefreshToken()
+
+    const updateUser = await UserModel.findByIdAndUpdate(
+        user?._id,
+        {
+        last_login_date:new Date(),
+        refresh_token:refreshToken
+      },
+      {new:true}
+).select(' -access_token -refresh_token ').populate('address_details')
+
+    response.cookie('accessToken',accessToken,{
+        httpOnly:true,
+        secure:true,
+        maxAge:15*60*1000,
+        sameSite:'none'
+    })
+    response.cookie('refreshToken',refreshToken,{
+        httpOnly:true,
+        secure:true,
+        maxAge:7*24*60*60*1000,
+        sameSite:'none'
+    })
+
+    return response.status(200).json({
+        message:"Login successful",
+        success:true,
+        error:false,
+        data:{
+            user:updateUser,
+            accessToken,
+            // refreshToken
+        }
+    })
+            }else{
+                  const accessToken = existingUser.generateAccessToken()
+    const refreshToken = existingUser.generateRefreshToken()
+
+    const updateUser = await UserModel.findByIdAndUpdate(existingUser?._id,{
+        last_login_date:new Date(),
+        refresh_token:refreshToken
+    },
+    {new:true}
+).select(' -access_token -refresh_token ').populate('address_details')
+
+    response.cookie('accessToken',accessToken,{
+        httpOnly:true,
+        secure:true,
+        maxAge:15*60*1000,
+        sameSite:'none'
+    })
+    response.cookie('refreshToken',refreshToken,{
+        httpOnly:true,
+        secure:true,
+        maxAge:7*24*60*60*1000,
+        sameSite:'none'
+    })
+
+    return response.status(200).json({
+        message:"Login successful",
+        success:true,
+        error:false,
+        data:{
+            user:updateUser,
+            accessToken,
+            // refreshToken
+        }
+    })
+
+            }
+
+        } catch (error) {
+            return response.status(500).json({
+                message:error.message||error,
+                error:true,
+                success:false
+            })
+            
+        }
+   
+      
+
+     
+    
+
+  
+      
+        
+    } catch (error) {
+        return response.status(500).json({
+            message:error.message||error,
+            error:true,
+            success:false
+        })
+    }
+}
 
 // verify email
 export async function verifyEmailController(request,response) {
@@ -342,8 +456,8 @@ export async function userAvatarController(request, response) {
         
         // uploads to avatar folder
         const options = {
-            use_filename: true,
-            unique_filename: false,
+            use_filename: false,
+            unique_filename: true,
             overwrite: true,
             folder:'avatars'
         };
@@ -356,7 +470,7 @@ export async function userAvatarController(request, response) {
             // Upload to Cloudinary
              result = await cloudinary.uploader.upload(image.path, options);
         } catch (error) {
-            return res.status(500).json({
+            return response.status(500).json({
                 message: error.message || error,
                 error: true,
                 success: false
@@ -368,12 +482,11 @@ export async function userAvatarController(request, response) {
         }
 
         
+
+        const oldPublicId = user.avatar?.public_id
         
 
-       //deleting previous avatar from cloudinary
-       if(user.avatar && user.avatar.public_id){
-        await cloudinary.uploader.destroy(user.avatar.public_id)
-       }
+   
 
            //update user avatar
             user.avatar = {
@@ -382,10 +495,19 @@ export async function userAvatarController(request, response) {
             }
             await user.save()
 
+                //deleting previous avatar from cloudinary
+       if(oldPublicId){
+        await cloudinary.uploader.destroy(oldPublicId)
+       }
+
 
         return response.status(200).json({
             _id: userId,
-            avatar: result.secure_url,
+            avatar: {
+                public_id:result.public_id,
+                url:result.secure_url 
+
+            },
             success:true
         });
 
