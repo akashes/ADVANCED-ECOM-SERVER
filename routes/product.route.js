@@ -1,6 +1,6 @@
 import express from 'express';
 import upload from '../middleware/multer.js';
-import { createProduct, deleteMultipleProductsController, deleteProduct, deleteProductImageController, deleteProductImageDuringCreation, getAllProductsWithCatFilter, getFeaturedProducts, getLatestProducts, getPopularProductsByCategory, getProduct, getProductCount, getProductsByCategory, getProductsByCategoryName, getProductsByFilter, getProductsByPrice, getProductsByPriceController, getProductsByRating, getProductsBySubCategory, getProductsBySubCategoryName, getProductsByThirdSubCategory, getProductsByThirdSubCategoryName, updateProductController, uploadProductImages, uploadProductImagesDuringUpdation } from '../controllers/product.controller.js';
+import { addReview, createProduct, deleteMultipleProductsController, deleteProduct, deleteProductImageController, deleteProductImageDuringCreation, getAllProductsWithCatFilter, getFeaturedProducts, getLatestProducts, getPopularProductsByCategory, getProduct, getProductCount, getProductsByCategory, getProductsByCategoryName, getProductsByFilter, getProductsByPrice, getProductsByPriceController, getProductsByRating, getProductsBySubCategory, getProductsBySubCategoryName, getProductsByThirdSubCategory, getProductsByThirdSubCategoryName, relatedProducts, updateProductController, uploadProductImages, uploadProductImagesDuringUpdation } from '../controllers/product.controller.js';
 import auth from '../middleware/auth.js';
 import { get } from 'http';
 
@@ -43,5 +43,9 @@ productRouter.get('/get-popular-products-by-category/:categoryId',getPopularProd
 productRouter.get('/latest',getLatestProducts)
 
 productRouter.get('/get-products-by-filter',getProductsByFilter)
+
+
+productRouter.post('/add-review/:productId',auth,addReview)
+productRouter.get('/related-products/:productId',relatedProducts)
 
 export default productRouter

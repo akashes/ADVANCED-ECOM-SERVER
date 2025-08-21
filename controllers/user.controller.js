@@ -116,7 +116,7 @@ export async function authWithGoogle(request,response){
                     name,
                     email,
                     password:"google-auth",
-                    avatar:{url:avatar},
+                    avatar:{url:avatar,public_id:""},
                     mobile,
                     verify_email:true,
                     signUpWithGoogle:true
@@ -1196,5 +1196,6 @@ export const updatePassword=async(request,response)=>{
         
     }
 }
+
 
 

@@ -5,7 +5,7 @@ const auth = async(request,response,next)=>{
         const token = request.cookies.accessToken || request?.headers?.authorization?.split(' ')[1] 
         console.log(token)
         if(!token){
-            return response.status(401).json({message:"Access token missing"})
+            return response.status(401).json({message:"You are not logged in"})
         }
         try {
             

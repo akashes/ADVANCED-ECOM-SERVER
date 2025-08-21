@@ -4,6 +4,7 @@ import fs from "fs";
 import slugify from "slugify";
 import ProductModel from "../models/product.model.js";
 import mongoose from "mongoose";
+import { response } from "express";
 
 // configuration
 cloudinary.config({
@@ -923,7 +924,9 @@ export const getProduct =async(request,response)=>{
             });
         }
 
-        const product = await ProductModel.findById(productId).populate('category');
+        const product = await ProductModel.findById(productId)
+        .populate('category')
+        .populate("reviews.user",'name avatar.url ')
 
         if (!product) {
             return response.status(404).json({
@@ -1441,5 +1444,119 @@ if (category) {
       success: false,
       error: error.message,
     });
+  }
+};
+
+
+
+//product review
+
+
+
+export const addReview = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { rating, comment } = req.body;
+
+    const product = await ProductModel.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    // check if user already reviewed
+    const existingReview = product.reviews.find(
+      r => r.user.toString() === req.userId.toString()
+    );
+
+    if (existingReview) {
+        console.log('existing review')
+      existingReview.rating = Number(rating);
+      existingReview.comment = comment;
+    } else {
+      //  create new review
+      console.log( 'new review')
+      const review = {
+        user: req.userId,
+        rating: Number(rating),
+        comment
+      };
+      product.reviews.push(review);
+    }
+
+    // recalc numReviews & avg rating
+    product.numReviews = product.reviews.length; 
+    product.rating =
+      product.reviews.reduce((acc, item) => item.rating + acc, 0) /
+      product.reviews.length;
+
+  const updatedProduct=  await product.save();
+  await updatedProduct.populate("reviews.user","name avatar")
+
+    console.log(product)
+
+    res.status(201).json({
+      success: true,
+      message: existingReview ? "Review updated" : "Review added",
+      product:updatedProduct
+    });
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+export const relatedProducts = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    console.log(productId)
+    const product = await ProductModel.findById(productId);
+    if(!product) return res.status(404).json({success:false,message:"Product not found"})
+
+        let related = [];
+
+        if(product.thirdSubCatId){
+            related = await ProductModel.find(
+                {
+                    thirdSubCatId:product.thirdSubCatId,
+                    _id:{$ne:product._id},
+
+                }
+            ).limit(6)
+        }
+
+          if (related.length < 6 && product.subCatId) {
+      const subCatProducts = await ProductModel.find({
+        subCatId: product.subCatId,
+        _id: { $ne: product._id },
+      })
+        .limit(6 - related.length);
+
+      related = [...related, ...subCatProducts];
+    }
+     if (related.length < 6 && product.category) {
+      const catProducts = await ProductModel.find({
+        category: product.category,
+        _id: { $ne: product._id },
+      })
+        .limit(6 - related.length);
+
+      related = [...related, ...catProducts];
+    }
+        const uniqueRelated = Array.from(
+      new Map(related.map((p) => [p._id.toString(), p])).values()
+    );
+
+
+
+
+    res.json({
+        success:true,
+        products:uniqueRelated.slice(0,6)
+    })
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
