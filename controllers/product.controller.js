@@ -5,6 +5,7 @@ import slugify from "slugify";
 import ProductModel from "../models/product.model.js";
 import mongoose from "mongoose";
 import { response } from "express";
+import CartProductModel from "../models/cartProduct.model.js";
 
 // configuration
 cloudinary.config({
@@ -890,7 +891,12 @@ export const deleteProduct =async(request,response)=>{
             });
 
             await Promise.all(deletePromises);
+
+
         }
+
+        //delete products from all carts
+        await CartProductModel.deleteMany({productId})
 
         // Delete product from database
         await ProductModel.findByIdAndDelete(productId);
@@ -1167,6 +1173,8 @@ export async function deleteMultipleProductsController(request,response){
             });
             
         }
+            await CartProductModel.deleteMany({ productId: { $in: ids } })
+
         const deletedProducts = await ProductModel.deleteMany({_id: {$in:ids}});
         return response.status(200).json({
             message: "Products deleted successfully",

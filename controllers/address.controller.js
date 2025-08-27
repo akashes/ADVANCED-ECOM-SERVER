@@ -159,3 +159,32 @@ export const deleteAddress=async(request,response)=>{
     
   }
 }
+
+
+export const updateAddress = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    const address = await AddressModel.findOne({ _id: id, userId });
+    if (!address) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found or not authorized",
+      });
+    }
+
+    //updating address
+
+    const updatedAddress = await AddressModel.findOneAndUpdate({_id:id,userId},req.body,{new:true,runValidators:true})
+
+    res.status(200).json({
+      success: true,
+      message: "Address updated successfully",
+      address:updatedAddress
+    });
+  } catch (error) {
+    console.error("Update Address Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

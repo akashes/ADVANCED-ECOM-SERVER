@@ -17,6 +17,14 @@ import homeSlidesRouter from './routes/homeSlides.route.js'
 import bannerV1Router from './routes/bannerV1.route.js'
 import blogRouter from './routes/blog.route.js'
 
+ import Razorpay from 'razorpay'
+import paymentRouter from './routes/payment.route.js'
+
+ export const instance = new Razorpay({
+  key_id: process.env.RAZORPAY_API_KEY,
+  key_secret: process.env.RAZORPAY_API_SECRET,
+
+});
 
  
 const app = express()
@@ -49,6 +57,7 @@ app.use('/api/address',addressRouter)
 app.use('/api/homeSlides',homeSlidesRouter) 
 app.use('/api/bannerV1',bannerV1Router) 
 app.use('/api/blog',blogRouter) 
+app.use('/api/payment',paymentRouter) 
 
  
 

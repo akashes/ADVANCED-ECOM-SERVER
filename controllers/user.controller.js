@@ -1046,7 +1046,13 @@ export async function refreshTokenController(request,response){
         }
 
         try {
-            const decoded = jwt.verify(refreshToken,process.env.REFRESH_TOKEN_SECRET)
+            let decoded;
+            try {
+                
+                 decoded = jwt.verify(refreshToken,process.env.REFRESH_TOKEN_SECRET)
+            } catch (error) {
+                console.log(error)
+            }
           console.log(decoded)
           console.log(decoded.id)
             const user = await UserModel.findById(decoded.id)
@@ -1075,7 +1081,7 @@ export async function refreshTokenController(request,response){
             //send new tokens in cookies
          
             
-            response.cookie('accessToken',newAccessToken,{httpOnly:true,secure:true,sameSite:'none',maxAge:5*60*1000}) // 5 minutes
+            response.cookie('accessToken',newAccessToken,{httpOnly:true,secure:true,sameSite:'none',maxAge:10*60*1000}) // 5 minutes
             response.cookie('refreshToken',newRefreshToken,{httpOnly:true,secure:true,sameSite:'none',maxAge:7*24*60*60*1000}) // 7 days
 
             //sending access token in response
