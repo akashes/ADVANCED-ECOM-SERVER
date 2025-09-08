@@ -1568,3 +1568,28 @@ export const relatedProducts = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
+export const getProductSuggestions = async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query) return res.json([]);
+
+ const suggestions = await ProductModel.aggregate([
+  { $match: { name: { $regex: query, $options: "i" } } },
+  { $project: {
+      name: 1,
+      slug: 1,
+      _id:1,
+      image: { $arrayElemAt: ["$images.url", 0] },
+      price:1
+    }
+  },
+  { $limit: 5 }
+]);
+
+    res.json(suggestions);
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
+  }
+};

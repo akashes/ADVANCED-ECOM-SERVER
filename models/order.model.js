@@ -17,7 +17,6 @@ const orderModel = new mongoose.Schema({
 
     razorpay_order_id:{
         type:String,
-        unique:true
     },
     razorpay_payment_id:String,
 
@@ -41,11 +40,11 @@ const orderModel = new mongoose.Schema({
     },
     order_status: {
   type: String,
-  enum: ["pending", "confirmed", "shipped", "delivered", "cancelled", "returned"],
+  enum: ["pending", "confirmed", "shipped","on-the-way", "delivered"],
   default: "Pending"
 },
     delivery_address:{
-        address_line1:{
+        address_line:{
             type:String,
             default:''
         },

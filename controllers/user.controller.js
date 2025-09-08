@@ -12,6 +12,12 @@ import fs from 'fs/promises'
 import { v2 as cloudinary } from "cloudinary";
 import mongoose from "mongoose";
 import forgotPasswordEmailTemplate from "../utils/forgotPasswordEmailTemplate.js";
+import OrderModel from "../models/order.model.js";
+import ProductModel from "../models/product.model.js";
+import CategoryModel from "../models/category.model.js";
+import AddressModel from "../models/address.model.js";
+import CartProductModel from "../models/cartProduct.model.js";
+import MyListModel from "../models/myList.model.js";
 
 
 // configuration
@@ -1205,3 +1211,159 @@ export const updatePassword=async(request,response)=>{
 
 
 
+
+
+
+
+
+export const getAllUsers =async(request,response)=>{
+    try {
+
+        console.log('inside getallusers')
+
+        const page = parseInt(request.query.page)||1
+        const perPage = parseInt(request.query.perPage)||3
+        const skip = (page-1)*perPage
+        const totalUsers = await UserModel.countDocuments()
+        const users = await UserModel.find().skip(skip).limit(perPage).sort({createdAt:-1})
+        if(!users){
+             return response.status(400).json({
+            message:'Users not found',
+            error:true,
+            success:false
+        })
+ }
+
+
+ return response.status(200).json({
+   error:false,
+   success:true,
+   users,
+   message:"Users data fetched successfully",
+   pagination:{
+      page,
+   perPage,
+   totalPages:Math.ceil(totalUsers/perPage),
+   totalUsers,
+
+   }
+ 
+
+ })
+
+
+        
+    } catch (error) {
+        console.log(error)
+          return response.status(500).json({
+            message:error.message||error,
+            error:true,
+            success:false
+        })
+        
+    }
+}
+
+
+
+export const deleteUser =async(request,response)=>{
+    try {
+        const { userId } = request.params;
+        console.log(userId)
+
+        if (!userId) {
+            return response.status(400).json({
+                message: "User ID is required",
+                success: false,
+                error: true
+            });
+        }
+        const user = await UserModel.findById(userId);
+        if (!user) {
+            return response.status(404).json({
+                message: "User not found",
+                success: false,
+                error: true
+            });
+        }
+        // Delete user avatar from Cloudinary 
+
+        cloudinary.uploader.destroy(user.avatar.public_id)
+
+        //delete addresses
+        await AddressModel.deleteMany({userId})
+
+        //delete carts
+        await CartProductModel.deleteMany({userId})
+
+        //delete favorites
+        await MyListModel.deleteMany({userId})
+
+
+        // Delete product from database
+        await UserModel.findByIdAndDelete(userId);
+
+        return response.status(200).json({
+            message: "User deleted successfully",
+            success: true,
+            error: false,
+            id: userId
+        });
+        
+    } catch (error) {
+        console.log(error)
+        return response.status(500).json({
+            message: "Error deleting User",
+            success: false,
+            error: error.message
+        });
+    }
+}
+
+
+export async function deleteMultipleUsersController(request,response){
+    try {
+        const ids = request.body.ids
+        if(!ids || !Array.isArray(ids) || ids.length === 0){
+            return response.status(400).json({
+                message: "User IDs are required",
+                success: false,
+                error: true
+            });
+        }
+        //deleting images
+        try {
+           for(let id of ids){
+            const user = await UserModel.findById(id)
+            if(user && user.avatar && user.avatar.public_id){
+                await cloudinary.uploader.destroy(user.avatar.public_id)
+            }
+           }
+            
+        } catch (error) {
+            return response.status(500).json({
+                message: "Error deleting user Avatar",
+                success: false,
+                error: true
+            });
+            
+        }
+            await CartProductModel.deleteMany({ userId: { $in: ids } })
+            await MyListModel.deleteMany({ userId: { $in: ids } })
+            await AddressModel.deleteMany({ userId: { $in: ids } })
+
+        const deletedUsers = await UserModel.deleteMany({_id: {$in:ids}});
+        return response.status(200).json({
+            message: "Users deleted successfully",
+            success: true,
+            error: false,
+            ids
+        });
+    } catch (error) {
+        return response.status(500).json({
+            message: error.message || error,
+            success: false,
+            error: true
+        });
+    }
+}

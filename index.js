@@ -17,21 +17,49 @@ import homeSlidesRouter from './routes/homeSlides.route.js'
 import bannerV1Router from './routes/bannerV1.route.js'
 import blogRouter from './routes/blog.route.js'
 
+import paypal from '@paypal/checkout-server-sdk'
+
  import Razorpay from 'razorpay'
 import paymentRouter from './routes/payment.route.js'
+import orderRouter from './routes/order.route.js'
+import adminRouter from './routes/admin.route.js'
 
  export const instance = new Razorpay({
   key_id: process.env.RAZORPAY_API_KEY,
   key_secret: process.env.RAZORPAY_API_SECRET,
 
-});
+}); 
 
+
+let environment = new paypal.core.SandboxEnvironment(process.env.PAYPAL_CLIENT_ID, process.env.PAYPAL_SECRET);
+export const client = new paypal.core.PayPalHttpClient(environment);
+const allowedOrigins = [
+  process.env.USER_FRONTEND_URL,
+  process.env.ADMIN_FRONTEND_URL,
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175"
+];
  
 const app = express()
+
 app.use(cors({
-    origin:['http://localhost:5174','http://localhost:5173','http://localhost:5175'],
-    credentials:true
-}))
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+}));
+// app.use(cors({
+//     origin:['http://localhost:5174','http://localhost:5173','http://localhost:5175'],
+//     credentials:true
+// }))
 // app.options('/*',cors())  // cors will manage this by default, but  if any cors errors occurs try uncommenting this 
 app.use(express.json())
 app.use(cookieParser())
@@ -58,6 +86,8 @@ app.use('/api/homeSlides',homeSlidesRouter)
 app.use('/api/bannerV1',bannerV1Router) 
 app.use('/api/blog',blogRouter) 
 app.use('/api/payment',paymentRouter) 
+app.use('/api/order',orderRouter) 
+app.use('/api/admin',adminRouter) 
 
  
 
@@ -68,4 +98,4 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT,()=>{
     console.log(`server is running on ${PORT}`)
-})
+}) 

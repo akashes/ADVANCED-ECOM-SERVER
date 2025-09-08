@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authWithGoogle, forgotPasswordController, getUserDetailsController, loginUserController, logoutController, refreshTokenController, registerUserController, removeAvatarController, resetPasswordController, updatePassword, updateUserDetails, userAvatarController, verifyEmailController, verifyForgotPasswordOtpController } from "../controllers/user.controller.js";
+import { authWithGoogle, deleteMultipleUsersController, deleteUser, forgotPasswordController, getAllUsers, getUserDetailsController, loginUserController, logoutController, refreshTokenController, registerUserController, removeAvatarController, resetPasswordController, updatePassword, updateUserDetails, userAvatarController, verifyEmailController, verifyForgotPasswordOtpController } from "../controllers/user.controller.js";
 import auth from "../middleware/auth.js";
 import upload from "../middleware/multer.js";
 
@@ -21,5 +21,9 @@ userRouter.put('/update-user-details',auth,updateUserDetails) //ROUTE FEELS wron
 userRouter.post('/refresh-token',refreshTokenController) 
 userRouter.get('/user-details',auth,getUserDetailsController)
 userRouter.put('/update-password',auth,updatePassword)
+userRouter.get('/get-all-users',auth,getAllUsers)
+
+userRouter.delete('/delete-user/:userId',auth,deleteUser)
+userRouter.delete('/delete-multiple-users',auth,deleteMultipleUsersController)
 
 export default userRouter  
