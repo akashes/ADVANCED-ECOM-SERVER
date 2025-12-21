@@ -488,7 +488,10 @@ export const getOrders = async(request,response)=>{
 
      
 
-        const orders = await OrderModel.find({userId}).populate('delivery_address').sort({createdAt:-1})
+        const orders = await OrderModel.find({userId})
+        .setOptions({readConcern:{level:'majority'}}) //for durable permanent data
+         .populate('delivery_address')
+         .sort({createdAt:-1})
         return response.status(200).json({
             success:true,
             error:false,
