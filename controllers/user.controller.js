@@ -34,7 +34,7 @@ export async function registerUserController(request,response){
     console.log('inside user controller')
     try {
         let user;
-        const {name,email,password}=request.body
+        const {name,email,password,role}=request.body
 
         // input validation
         if(!name||!email||!password){
@@ -64,6 +64,7 @@ export async function registerUserController(request,response){
             name,
             email,
             password:hashPassword,
+            role,
             otp:verifyCode,
             otpExpires:Date.now()+15*60*1000 //15 minutes
         })
@@ -112,8 +113,11 @@ export async function registerUserController(request,response){
     }
 }
 export async function authWithGoogle(request,response){
+    const SAFE_ROLES = ["USER","MODERATOR"];
+
     try {
         const {name,email,password,avatar,mobile}=request.body
+     
 
         try {
             const existingUser = await UserModel.findOne({email})
@@ -125,11 +129,14 @@ export async function authWithGoogle(request,response){
                     avatar:{url:avatar,public_id:""},
                     mobile,
                     verify_email:true,
-                    signUpWithGoogle:true
+                    signUpWithGoogle:true,
+                    role:SAFE_ROLES
 
                 })
                               const accessToken = user.generateAccessToken()
     const refreshToken = user.generateRefreshToken()
+
+
 
     const updateUser = await UserModel.findByIdAndUpdate(
         user?._id,
@@ -164,12 +171,31 @@ export async function authWithGoogle(request,response){
         }
     })
             }else{
+            //existing user
+            if(existingUser.status!=='active'){
+                 return response.status(400).json({
+            message:"User is not active,Contact Admin",
+            success:false,
+            error:true
+        })
+            }
+
+ const newRoles = ["USER","MODERATOR"]; 
+      const mergedRoles = Array.from(
+        new Set([
+          ...(existingUser.role || []),
+          ...newRoles.filter((r) => SAFE_ROLES.includes(r)),
+        ])
+      );    
+    //   const mergedRoles = Array.from(new Set([...(existingUser.role || []), ...newRoles]));
+
                   const accessToken = existingUser.generateAccessToken()
     const refreshToken = existingUser.generateRefreshToken()
 
     const updateUser = await UserModel.findByIdAndUpdate(existingUser?._id,{
         last_login_date:new Date(),
-        refresh_token:refreshToken
+        refresh_token:refreshToken,
+        role:mergedRoles
     },
     {new:true}
 ).select(' -access_token -refresh_token ').populate('address_details')
@@ -335,7 +361,7 @@ export async function loginUserController(request,response) {
             error:true
         })
     }
-    if(user.status!=='Active'){
+    if(user.status!=='active'){
         return response.status(400).json({
             message:"User is not active,Contact Admin",
             success:false,
@@ -1219,13 +1245,25 @@ export const updatePassword=async(request,response)=>{
 export const getAllUsers =async(request,response)=>{
     try {
 
-        console.log('inside getallusers')
 
         const page = parseInt(request.query.page)||1
-        const perPage = parseInt(request.query.perPage)||3
+        const perPage = parseInt(request.query.perPage)||10
         const skip = (page-1)*perPage
-        const totalUsers = await UserModel.countDocuments()
-        const users = await UserModel.find().skip(skip).limit(perPage).sort({createdAt:-1})
+        const search = request.query.search || ''
+
+        let query = {}
+        if(search.trim()!==''){
+            query.$or=[
+                {
+                    name:{$regex:search,$options:'i'}
+                },
+                {
+                    email:{$regex:search,$options:'i'}
+                },
+            ]
+        }
+        const totalUsers = await UserModel.countDocuments(query)
+        const users = await UserModel.find(query).skip(skip).limit(perPage).sort({createdAt:-1})
         if(!users){
              return response.status(400).json({
             message:'Users not found',
@@ -1366,4 +1404,156 @@ export async function deleteMultipleUsersController(request,response){
             error: true
         });
     }
+}
+
+export async function updateUserRoles(req, res) {
+  try {
+    const id = req.params.id;
+    const { role } = req.body; // role should be an array
+
+    if (!Array.isArray(role)) {
+      return res.status(400).json({
+        message: "Role must be an array of values",
+        success: false,
+        error: true,
+      });
+    }
+
+    const user = await UserModel.findById(id);
+    if (!user) {
+      return res.status(400).json({
+        message: "User not found",
+        success: false,
+        error: true,
+      });
+    }
+
+    // Only ADMIN or SUPER-ADMIN can change roles
+    if (!["ADMIN", "SUPER-ADMIN"].some((r) => req.user.role.includes(r))) {
+      return res.status(403).json({
+        message: "You are not allowed to change roles",
+        success: false,
+      });
+    }
+
+    // Prevent promoting yourself to ADMIN
+    if (req.user._id.toString() === id && role.includes("ADMIN") && (!user.role.includes("ADMIN") && !user.role.includes('SUPER-ADMIN')) ) {
+      return res.status(403).json({
+        message: "You cannot promote yourself to ADMIN",
+        success: false,
+      });
+    }
+
+    // Only SUPER-ADMIN can assign SUPER-ADMIN role
+    if (role.includes("SUPER-ADMIN") && !req.user.role.includes("SUPER-ADMIN")) {
+      return res.status(403).json({
+        message: "Only Super Admin can assign the SUPER-ADMIN role",
+        success: false,
+      });
+    }
+
+    // Prevent SUPER-ADMIN from removing their own SUPER-ADMIN role
+    if (
+      req.user._id.toString() === id &&
+      user.role.includes("SUPER-ADMIN") &&
+      !role.includes("SUPER-ADMIN")
+    ) {
+      return res.status(403).json({
+        message: "Super Admin cannot remove their own SUPER-ADMIN role",
+        success: false,
+      });
+    }
+
+    // Update roles
+    user.role = [...new Set(role)]; // remove duplicates just in case
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      error: false,
+      message: "User roles updated successfully",
+      id: user._id,
+      user,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      success: false,
+      error: true,
+      message: "Server error",
+    });
+  }
+}
+
+export async function updateUserStatus(req,res) {
+    try {
+        const id = req.params.id
+        const {status}=req.body
+    
+        const user = await UserModel.findById(id)
+        if(!user){
+            return res.status(400).json({
+                message:"User not found",
+                success:false,
+                error:true
+            })
+
+
+        }
+
+        if (user.role.includes("SUPER-ADMIN")) {
+  return res.status(403).json({
+    success: false,
+    error: true,
+    message: "You cannot change the status of a Super Admin"
+  });
+}
+ 
+
+if (req.user._id.toString() === user._id.toString()) {
+  return res.status(403).json({
+    success: false,
+    error: true,
+    message: "You cannot change your own status"
+  });
+}
+
+
+if (
+  req.user.role.includes("ADMIN") && 
+  !req.user.role.includes("SUPER-ADMIN") && 
+  (user.role.includes("ADMIN") || user.role.includes("SUPER-ADMIN"))
+) {
+  return res.status(403).json({
+    success: false,
+    error: true,
+    message: "Admins cannot change the status of other Admins or Super Admins"
+  });
+}
+
+
+
+
+
+
+        user.status = status
+        await user.save()
+
+        return res.status(200).json({
+            success:true,
+            error:false,
+            message:"user status updated successfully",
+            id:user._id,
+            user
+        })
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({
+            success:false,
+            error:true,
+            message:"server error"
+        })
+        
+    }
+    
 }

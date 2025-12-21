@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { authWithGoogle, deleteMultipleUsersController, deleteUser, forgotPasswordController, getAllUsers, getUserDetailsController, loginUserController, logoutController, refreshTokenController, registerUserController, removeAvatarController, resetPasswordController, updatePassword, updateUserDetails, userAvatarController, verifyEmailController, verifyForgotPasswordOtpController } from "../controllers/user.controller.js";
+import { authWithGoogle, deleteMultipleUsersController, deleteUser, forgotPasswordController, getAllUsers, getUserDetailsController, loginUserController, logoutController, refreshTokenController, registerUserController, removeAvatarController, resetPasswordController, updatePassword, updateUserDetails, updateUserRoles, updateUserStatus, userAvatarController, verifyEmailController, verifyForgotPasswordOtpController } from "../controllers/user.controller.js";
 import auth from "../middleware/auth.js";
 import upload from "../middleware/multer.js";
+import { authorizeRoles } from "../middleware/authRoles.js";
 
 const userRouter = Router();
 
@@ -23,7 +24,11 @@ userRouter.get('/user-details',auth,getUserDetailsController)
 userRouter.put('/update-password',auth,updatePassword)
 userRouter.get('/get-all-users',auth,getAllUsers)
 
-userRouter.delete('/delete-user/:userId',auth,deleteUser)
-userRouter.delete('/delete-multiple-users',auth,deleteMultipleUsersController)
+userRouter.delete('/delete-user/:userId',auth,authorizeRoles('ADMIN','SUPER-ADMIN'), deleteUser)
+userRouter.delete('/delete-multiple-users',auth,authorizeRoles('ADMIN','SUPER-ADMIN'),deleteMultipleUsersController)
+
+userRouter.put('/roles/:id',auth,authorizeRoles('ADMIN','SUPER-ADMIN'),updateUserRoles)
+userRouter.put('/status/:id',auth,authorizeRoles('ADMIN','SUPER-ADMIN'),updateUserStatus)
+
 
 export default userRouter  

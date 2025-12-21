@@ -430,6 +430,7 @@ export const getProductsBySubCategory = async (request, response) => {
             });
         }
     
+
         const products = await ProductModel.find({ subCatId: new mongoose.Types.ObjectId(categoryId) })
             .populate('category')
             .skip((page - 1) * perPage)
@@ -437,11 +438,12 @@ export const getProductsBySubCategory = async (request, response) => {
             .sort({ createdAt: -1 })
             .exec();
     
+            console.log(products)
         if (!products || products.length === 0) {
             return response.status(404).json({
                 message: "No products found",
                 success: false,
-                error: true
+                error: true 
             });
         }
     

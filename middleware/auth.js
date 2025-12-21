@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken'
+import UserModel from '../models/user.model.js'
 
 
 const auth = async(request,response,next)=>{
@@ -11,6 +12,13 @@ const auth = async(request,response,next)=>{
             
             const decoded = jwt.verify(token,process.env.ACCESS_TOKEN_SECRET)
             request.userId = decoded.id
+            request.user = await UserModel.findById(decoded.id).select("name email role")
+            if(!request.user){
+                return  response.status(401).json({
+                    message:"User not found"
+                })
+            }
+
             next()
 
         } catch (error) {

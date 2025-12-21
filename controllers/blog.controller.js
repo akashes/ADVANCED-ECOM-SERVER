@@ -45,6 +45,15 @@ export async function createBlogController(request, response) {
                 error: true,
             });
         }
+       //checking limit
+         const blogCount = await BlogModel.countDocuments();
+        if (blogCount >= 8) {
+            return response.status(400).json({
+                message: "Maximum Blogs limit of 8 reached",
+                success: false,
+                error: true,
+            });
+        }
 
         // Uploading image to Cloudinary
         const options = {
@@ -89,6 +98,15 @@ export async function deleteBlogController(request, response) {
         if (!id) {
             return response.status(400).json({
                 message: "Blog id is required",
+                success: false,
+                error: true,
+            });
+        }
+
+        const blogCount = await BlogModel.countDocuments()
+        if (blogCount <= 4) {
+            return response.status(400).json({
+                message: "Minimum of 4 Blogs are required",
                 success: false,
                 error: true,
             });

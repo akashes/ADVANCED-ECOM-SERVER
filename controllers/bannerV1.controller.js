@@ -24,7 +24,7 @@ export async function createBannerV1Controller(request,response){
         const existingBanners = await BannerV1Model.find()
            if(existingBanners.length>=8){
             return response.status(400).json({
-                  message:"Maximum of 8 Banners are allowed",
+                  message:"Maximum Banner count of 8 is reached!",
                 success:false,
                 error:true,
 

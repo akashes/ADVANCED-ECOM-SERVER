@@ -69,7 +69,7 @@ export const getDashboardStats = async (req, res) => {
 
     res.json({
       success: true,
-      data: {
+      data: { 
         orders: orderStats,
         users: userStats,
         products: productStats,
@@ -79,4 +79,4 @@ export const getDashboardStats = async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
-};
+}; 

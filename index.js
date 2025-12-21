@@ -2,8 +2,12 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 dotenv.config()
+
+import http from 'http'
+import { Server } from 'socket.io'
+
 import { connectDB } from './config/connectDB.js'
-connectDB()
+// connectDB()
 import cookieParser from 'cookie-parser'
 import morgan from 'morgan'
 import helmet from 'helmet'
@@ -16,13 +20,15 @@ import addressRouter from './routes/address.route.js'
 import homeSlidesRouter from './routes/homeSlides.route.js'
 import bannerV1Router from './routes/bannerV1.route.js'
 import blogRouter from './routes/blog.route.js'
-
+ 
 import paypal from '@paypal/checkout-server-sdk'
-
+ 
  import Razorpay from 'razorpay'
 import paymentRouter from './routes/payment.route.js'
 import orderRouter from './routes/order.route.js'
 import adminRouter from './routes/admin.route.js'
+
+
 
  export const instance = new Razorpay({
   key_id: process.env.RAZORPAY_API_KEY,
@@ -40,27 +46,42 @@ const allowedOrigins = [
   "http://localhost:5174",
   "http://localhost:5175"
 ];
- 
+
 const app = express()
+const server = http.createServer(app)
+const io = new Server(server, {
+  cors: {
+    origin: [
+      process.env.USER_FRONTEND_URL,
+      process.env.ADMIN_FRONTEND_URL,
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:5175"
+    ],
+    credentials: true
+  }
+});
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) return callback(null, true);
+connectDB(io)
 
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-}));
 // app.use(cors({
-//     origin:['http://localhost:5174','http://localhost:5173','http://localhost:5175'],
-//     credentials:true
-// }))
-// app.options('/*',cors())  // cors will manage this by default, but  if any cors errors occurs try uncommenting this 
+//   origin: function (origin, callback) {
+//     // Allow requests with no origin (like mobile apps or curl)
+//     if (!origin) return callback(null, true);
+
+//     if (allowedOrigins.includes(origin)) {
+//       callback(null, true);
+//     } else {
+//       callback(new Error("Not allowed by CORS"));
+//     }
+//   },
+//   credentials: true,
+// }));
+app.use(cors({
+    origin:['http://localhost:5174','http://localhost:5173','http://localhost:5175'],
+    credentials:true
+}))
+// app.options('/*',cors())  // cors will manage this by default, but  if any cors errors occurs try uncommenting this  
 app.use(express.json())
 app.use(cookieParser())
 app.use(morgan("dev"))
@@ -96,6 +117,9 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Something went wrong" });
 });
 
-app.listen(PORT,()=>{
+// app.listen(PORT,()=>{
+//     console.log(`server is running on ${PORT}`)
+// }) 
+server.listen(PORT,()=>{
     console.log(`server is running on ${PORT}`)
 }) 

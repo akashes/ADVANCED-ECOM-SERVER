@@ -55,15 +55,15 @@ const userSchema =new  mongoose.Schema({
     },
     status:{
         type:String,
-        enum:['Active','Inactive','Suspended'],
-        default:'Active'
+        enum:['active','inactive','suspended'],
+        default:'active'
     },
     address_details:[
         {
         type:mongoose.Schema.Types.ObjectId,
         ref:'Address'
             }, 
-     ],
+     ], 
      shopping_cart:[
         {
             type:mongoose.Schema.Types.ObjectId,
@@ -91,9 +91,9 @@ const userSchema =new  mongoose.Schema({
         select:false
     },
      role:{
-        type:String,
-        enum:['USER','ADMIN'],
-        default:'USER'
+        type:[String],
+        enum:['USER','ADMIN','MODERATOR','SUPER-ADMIN'],
+        default:['USER']
      },
      signUpWithGoogle:{
             type:Boolean,
@@ -102,6 +102,10 @@ const userSchema =new  mongoose.Schema({
      selected_address:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'Address'
+     },
+     isDeleted:{
+        type:Boolean,
+        default:false
      }
 
 },{timestamps:true})

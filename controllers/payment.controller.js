@@ -9,6 +9,12 @@ import mongoose from "mongoose";
 import paypal from '@paypal/checkout-server-sdk'
 
 import { client } from "../index.js";  //paypal client
+import nodemailer from 'nodemailer'
+import { orderUpdateTemplate } from "../utils/orderUpdateTemplate.js";
+import sendEmailFun from "../config/sendEmail.js";
+function escapeRegex(text) {
+  return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"); // escape special chars
+}
 
 export const createOrder=async(request,response)=>{
     try {
@@ -243,7 +249,7 @@ export const cashOnDelivery = async (req, res) => {
 
 
 
-
+  const codPaymentId =`cod_${crypto.randomUUID()}`
 
 
    const order = await OrderModel.create([
@@ -258,6 +264,7 @@ export const cashOnDelivery = async (req, res) => {
       delivery_address,
       total,
       date,
+      payment_id:codPaymentId,
       receipt: `rcpt_${Date.now()}`,
       notes: { verified: "true", method: "cod" },
       payment_method:'cod'
@@ -499,100 +506,107 @@ export const getOrders = async(request,response)=>{
     }
 }
 
-export const getAllOrdersAdmin = async(request,response)=>{
-    try {
-        const userId = request.userId
-        if(!userId){ 
-            return response.status(400).json({
-                success:false,
-                error:true,
-                message:"User not found"
-            })
-        }
+export const getAllOrdersAdmin = async (req, res) => {
+  try {
+    console.log('inside get all orders')
 
-            const page = parseInt(request.query.page) || 1;
-    const limit = parseInt(request.query.limit) || 10;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-        const { search, payment_method, payment_status, order_status,dateRange } = request.query;
-
-           let filter = {};
+    // (3) Filters
+    const { search, payment_method, payment_status, order_status, dateRange } = req.query;
+    console.log('dateRange',dateRange)
+    let filter = {};
 
     if (search) {
-      filter.$or = [
-        { payment_id: { $regex: search, $options: "i" } },
-        { name: { $regex: search, $options: "i" } },
-        { email: { $regex: search, $options: "i" } },
-      ];
-    }
+      console.log('search is ',search)
+      const regex = new RegExp(escapeRegex(search).replace(/\s+/g, ".*"), "i");
 
+  const orConditions = [
+    { payment_id: regex },
+    { name: regex },
+    { email: regex },
+    {userId:regex},
+    {payment_method:regex}
+  ];
+
+      // handle search by ObjectId safely
+  //      if (mongoose.Types.ObjectId.isValid(search)) {
+  //   orConditions.push({ userId: new mongoose.Types.ObjectId(search) });
+  // }
+
+      filter.$or = orConditions;
+    }
+ 
     if (payment_method) filter.payment_method = payment_method;
     if (payment_status) filter.payment_status = payment_status;
     if (order_status) filter.order_status = order_status;
-
-
+ 
+    // (4) Date Ranges with start + end
     if (dateRange) {
-        const now = new Date();
-        let startDate;
-        
-        switch (dateRange) {
-            case "today":
-                startDate = new Date(now.setHours(0, 0, 0, 0));
-                filter.createdAt = { $gte: startDate };
-                break;
+      console.log(dateRange)
+      const now = new Date();
+      let startDate, endDate;
 
-                case "lastweek":
-                    startDate = new Date();
-                    startDate.setDate(startDate.getDate() - 7);
-                    filter.createdAt = { $gte: startDate };
-                    break;
-                    
-                    case "lastmonth":
-                        startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 1);
-      filter.createdAt = { $gte: startDate };
-      break;
-      
-      case "thisyear":
-          startDate = new Date(now.getFullYear(), 0, 1); // Jan 1 of this year
-          filter.createdAt = { $gte: startDate };
+      switch (dateRange) {
+        case "today":
+          startDate = new Date(now.setHours(0, 0, 0, 0));
+          endDate = new Date(now.setHours(23, 59, 59, 999));
           break;
-          
-          default:
-              break;
-            }
-        }
-        const totalOrders = await OrderModel.countDocuments(filter);
-        
-    // Fetch paginated orders
+
+        case "lastweek":
+          startDate = new Date();
+          startDate.setDate(startDate.getDate() - 7);
+          endDate = new Date();
+          break;
+
+        case "lastmonth":
+          startDate = new Date();
+          startDate.setMonth(startDate.getMonth() - 1);
+          endDate = new Date();
+          break;
+
+        case "thisyear":
+          startDate = new Date(now.getFullYear(), 0, 1);
+          endDate = new Date();
+          break;
+      }
+
+      if (startDate && endDate) {
+        filter.createdAt = { $gte: startDate, $lte: endDate };
+      }
+    } 
+
+    // (5) Query DB
+    const totalOrders = await OrderModel.countDocuments(filter);
     const orders = await OrderModel.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
-     
+      .limit(limit)
+      .lean(); // performance boost
 
-        return response.status(200).json({
+    return res.status(200).json({
       success: true,
       error: false,
       orders,
       pagination: {
         totalOrders,
         currentPage: page,
-        totalPages: Math.ceil(totalOrders / limit),
+        totalPages: Math.max(1, Math.ceil(totalOrders / limit)), // ensure at least 1
         pageSize: limit,
       },
     });
-        
-    } catch (error) {
-        console.log(error)
-        return response.status(500).json({
-            success:false,
-            error:true,
-            message:error.message||error
-        })
-        
-    }
-}
+
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      error: true,
+      message: error.message || "Internal server error",
+    });
+  }
+};
 
 
 
@@ -618,8 +632,48 @@ export const updateOrderStatus=async(req,res)=>{
                 message:"Order not found"
             })  
         }
+
+        if(status==='delivered' && order.payment_status==='pending'){
+           return res.status(400).json({
+    success: false,
+    message: "Cannot mark as delivered until payment is completed.",
+  });
+
+        }
+
+          // If COD order delivered, decrement reservedStock
+    if (order.payment_method === "cod" && status === "delivered") {
+      for (let item of order.products) {
+        const product = await ProductModel.findById(item.productId);
+        if (product) {
+          product.reservedStock -= item.quantity;
+          // avoiding going negative
+          if (product.reservedStock < 0) product.reservedStock = 0;
+          await product.save();
+        }
+     
+        }
+      }
         order.order_status = status
         await order.save()
+
+    //send email
+             console.log('sending email to ',order.email)
+             const verifyEmail = await sendEmailFun(
+                order.email,
+                'Your Order Status has been Updated',
+                `Your order is now ${order.order_status}`,
+                orderUpdateTemplate(order.name,order._id,order.order_status))
+              console.log(verifyEmail)
+
+    // -- sms twilio
+    // const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
+    // await client.messages.create({
+    //   body: `Your order #${order._id} is now ${status}`,
+    //   from: "whatsapp:+14155238886", // or SMS sender ID
+    //   to: `whatsapp:${order.phone}`, // or `+91xxxxxx`
+    // });
+
         return res.status(200).json({
             success:true,
             error:false,

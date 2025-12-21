@@ -1,10 +1,11 @@
 import mongoose, { mongo } from "mongoose";
 
 
+
 const orderModel = new mongoose.Schema({
     userId:{
-        type:mongoose.Schema.ObjectId,
-        ref:'User'
+        type:String,
+        required:true
     },
     name:{
         type:String,
@@ -40,8 +41,8 @@ const orderModel = new mongoose.Schema({
     },
     order_status: {
   type: String,
-  enum: ["pending", "confirmed", "shipped","on-the-way", "delivered"],
-  default: "Pending"
+  enum: ["pending", "confirmed", "shipped","on-the-way", "delivered", "cancel-requested", "cancelled","refunded"],
+  default: "pending"
 },
     delivery_address:{
         address_line:{
