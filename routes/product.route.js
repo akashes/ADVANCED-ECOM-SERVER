@@ -50,6 +50,6 @@ productRouter.get('/get-products-by-filter',getProductsByFilter)
 
 productRouter.post('/add-review/:productId',auth,addReview)
 productRouter.get('/related-products/:productId',auth,relatedProducts)
-productRouter.get('/suggestions',auth,getProductSuggestions)
+productRouter.get('/suggestions',getProductSuggestions)
 
 export default productRouter

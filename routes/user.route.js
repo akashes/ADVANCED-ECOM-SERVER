@@ -3,12 +3,13 @@ import { authWithGoogle, deleteMultipleUsersController, deleteUser, forgotPasswo
 import auth from "../middleware/auth.js";
 import upload from "../middleware/multer.js";
 import { authorizeRoles } from "../middleware/authRoles.js";
+import { strictLimiter } from "../middleware/rateLimiter.js";
 
 const userRouter = Router();
 
-userRouter.post("/register", registerUserController);
+userRouter.post("/register",strictLimiter, registerUserController);
 userRouter.post('/verify-email',verifyEmailController)
-userRouter.post('/login',loginUserController)
+userRouter.post('/login',strictLimiter, loginUserController)
 userRouter.post('/google-auth',authWithGoogle)
 userRouter.post('/logout',auth,logoutController)
 userRouter.put('/upload-avatar',auth,upload.single('avatar'),userAvatarController)
