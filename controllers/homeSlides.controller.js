@@ -1,7 +1,6 @@
 import fs from "fs";
 import { v2 as cloudinary } from "cloudinary";
 import HomeSlidesModel from "../models/homeSlides.model.js";
-import { request } from "http";
 // configuration
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -11,22 +10,25 @@ cloudinary.config({
 })
 
 export const createHomeSlidesController=async(request,response)=>{
+    if(!request.file){
+        return response.status(400).json({
+            message:"Image is required",
+            success:false,
+            error:true
+        })
+    }
     try {
-        const existingSlides = HomeSlidesModel.find()
-        if((await existingSlides).length>=10){
+        const slidesCount = await HomeSlidesModel.countDocuments()
+        if (slidesCount >= 10) {
+            // Clean up the uploaded file before returning
+            fs.unlinkSync(request.file.path);
             return response.status(400).json({
-                message:"Maximum 10 home slides allowed",
-                success:false,
-                error:true
-            })
+                message: "Maximum 10 home slides allowed",
+                success: false,
+                error: true
+            });
         }
-        if(!request.file){
-            return response.status(400).json({
-                message:"Image is required",
-                success:false,
-                error:true
-            })
-        }
+    
 
         try {
                //uploading image to cloudinary
