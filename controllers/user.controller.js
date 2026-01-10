@@ -59,12 +59,13 @@ export async function registerUserController(request,response){
         const verifyCode = Math.floor(100000 + Math.random() * 900000).toString()
 
         const hashPassword=await bcrypt.hash(password,10)
+        const DEFAULT_ROLES = ['USER','MODERATOR']
      
         user=new UserModel({
             name,
             email,
             password:hashPassword,
-            role,
+            role:DEFAULT_ROLES,
             otp:verifyCode,
             otpExpires:Date.now()+15*60*1000 //15 minutes
         })

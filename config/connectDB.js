@@ -23,7 +23,7 @@ export const connectDB=async(io)=>{
                 console.log('NEW ORDER',doc)
                 io.emit('new-order-notification',{
                     message:`New Order Placed!`,
-                    orderId:doc._id 
+                    orderId:next.fullDocument._id.toString()
                 })
                 
             }

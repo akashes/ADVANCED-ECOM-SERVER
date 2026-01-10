@@ -7,7 +7,7 @@ const myListRouter = express.Router()
 
 myListRouter.post('/add-to-mylist/:productId',auth,addToMyListController)
 myListRouter.delete('/remove-wishlist-item/:myListId',auth,deleteFromMyListController)
-myListRouter.get('/', auth, getMyListController);
+myListRouter.get('/',auth, getMyListController);
 myListRouter.get('/ids',auth,getWishlistIds)
 myListRouter.post('/by-ids',getProductsByIds)
 

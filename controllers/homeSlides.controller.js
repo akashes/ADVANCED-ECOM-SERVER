@@ -56,7 +56,10 @@ export const createHomeSlidesController=async(request,response)=>{
         } catch (error) {
             console.log(error)
             //removing from local storage
-            fs.unlinkSync(request.file.path);
+            if(fs.existsSync(request.file.path)){
+                
+                fs.unlinkSync(request.file.path);
+            }
             return response.status(500).json({
                 message:"Something went wrong",
                 success:false,
@@ -138,4 +141,4 @@ export const deleteHomeSlide=async(request,response)=>{
         })
         
     }
-}
+} 

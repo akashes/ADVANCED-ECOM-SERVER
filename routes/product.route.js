@@ -43,7 +43,7 @@ productRouter.post('/upload-product-images-during-updation',auth,upload.array('p
 productRouter.put('/update-product/:productId',auth,updateProductController)
 
 productRouter.get('/get-popular-products-by-category/:categoryId',getPopularProductsByCategory)
-productRouter.get('/latest',auth,getLatestProducts)
+productRouter.get('/latest',getLatestProducts)
 
 productRouter.get('/get-products-by-filter',getProductsByFilter)
 

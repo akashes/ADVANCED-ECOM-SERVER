@@ -21,24 +21,15 @@ import homeSlidesRouter from './routes/homeSlides.route.js'
 import bannerV1Router from './routes/bannerV1.route.js'
 import blogRouter from './routes/blog.route.js'
  
-import paypal from '@paypal/checkout-server-sdk'
- 
- import Razorpay from 'razorpay'
+
+import {razorpayInstance,paypalClient} from './config/payment.config.js'
 import paymentRouter from './routes/payment.route.js'
 import orderRouter from './routes/order.route.js'
 import adminRouter from './routes/admin.route.js'
 
 
 
- export const instance = new Razorpay({
-  key_id: process.env.RAZORPAY_API_KEY,
-  key_secret: process.env.RAZORPAY_API_SECRET,
 
-}); 
-
-
-let environment = new paypal.core.SandboxEnvironment(process.env.PAYPAL_CLIENT_ID, process.env.PAYPAL_SECRET);
-export const client = new paypal.core.PayPalHttpClient(environment);
 const allowedOrigins = [
   process.env.USER_FRONTEND_URL,
   process.env.ADMIN_FRONTEND_URL,
@@ -49,6 +40,8 @@ const allowedOrigins = [
 
 const app = express()
 const server = http.createServer(app)
+
+//socket setup
 const io = new Server(server, {
   cors: {
     origin: [
@@ -84,7 +77,7 @@ app.use(cors({
 // app.options('/*',cors())  // cors will manage this by default, but  if any cors errors occurs try uncommenting this  
 app.use(express.json())
 app.use(cookieParser())
-app.use(morgan("dev"))
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(helmet({
     crossOriginResourcePolicy:false
 
@@ -94,7 +87,7 @@ const PORT = process.env.PORT || 8080
 
 
 app.get('/',(req,res)=>{
-    res.send('hai how are you')
+    res.send('ecom app working fine')
 })
 
 app.use('/api/user',userRouter)

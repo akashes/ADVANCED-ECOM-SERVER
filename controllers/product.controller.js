@@ -1520,7 +1520,6 @@ export const addReview = async (req, res) => {
 export const relatedProducts = async (req, res) => {
   try {
     const { productId } = req.params;
-    console.log(productId)
     const product = await ProductModel.findById(productId);
     if(!product) return res.status(404).json({success:false,message:"Product not found"})
 

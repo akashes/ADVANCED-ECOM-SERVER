@@ -110,7 +110,9 @@ export const deleteFromMyListController = async (request, response) => {
 
 export const getMyListController = async (request, response) => {
     try {
+        console.log('inside get my list')
         const userId = request.userId;
+        console.log(userId)
 
         // Validate user ID
         if (!userId) {
@@ -122,6 +124,7 @@ export const getMyListController = async (request, response) => {
 
         // Fetch the user's myList items
         const myListItems = await MyListModel.find({ userId }).populate('productId')
+        console.log(myListItems)
 
 
         return response.status(200).json({

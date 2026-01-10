@@ -1,6 +1,6 @@
 
 
-import { instance } from "../index.js";
+import { razorpayInstance } from "../config/payment.config.js";
 import OrderModel from "../models/order.model.js";
 import crypto from "crypto";
 import ProductModel from "../models/product.model.js";
@@ -8,7 +8,7 @@ import mongoose from "mongoose";
 
 import paypal from '@paypal/checkout-server-sdk'
 
-import { client } from "../index.js";  //paypal client
+import { paypalClient } from "../config/payment.config.js";  //paypal client
 import nodemailer from 'nodemailer'
 import { orderUpdateTemplate } from "../utils/orderUpdateTemplate.js";
 import sendEmailFun from "../config/sendEmail.js";
@@ -51,7 +51,7 @@ export const createOrder=async(request,response)=>{
             }
             
         }
-      const order =   await instance.orders.create(options)
+      const order =   await razorpayInstance.orders.create(options)
       console.log(order)
       response.status(200).json({
         success:true,
@@ -311,9 +311,7 @@ export const getPayPalClientKey=async(req,res)=>{
 
 // Create paypal order
 export const createPayPalOrder=async(req,res)=>    {
-    console.log('inside createPayPalOrder controller')
-    console.log(req.body.amount)
-    console.log(client)
+   
     const {amount,products} = req.body
     if(!amount || amount<=0){
         return res.status(400).json({
@@ -355,7 +353,7 @@ export const createPayPalOrder=async(req,res)=>    {
   });
 
   try {
-    const order = await client.execute(request);
+    const order = await paypalClient.execute(request);
 
     res.status(200).json({
         success:true,
@@ -526,18 +524,28 @@ export const getAllOrdersAdmin = async (req, res) => {
       console.log('search is ',search)
       const regex = new RegExp(escapeRegex(search).replace(/\s+/g, ".*"), "i");
 
+      console.log(regex)
   const orConditions = [
     { payment_id: regex },
     { name: regex },
     { email: regex },
-    {userId:regex},
-    {payment_method:regex}
+    // {userId:regex},
+    {payment_method:regex},
   ];
 
       // handle search by ObjectId safely
   //      if (mongoose.Types.ObjectId.isValid(search)) {
   //   orConditions.push({ userId: new mongoose.Types.ObjectId(search) });
   // }
+  if (mongoose.Types.ObjectId.isValid(search)) {
+    orConditions.push({ _id: new mongoose.Types.ObjectId(search) });
+    // If userId is also an ObjectId 
+    orConditions.push({ userId: new mongoose.Types.ObjectId(search) });
+  } else {
+    // 2. If it's NOT a valid ObjectId, search userId as a regex 
+    // (Only if userId is stored as a string, otherwise it will error)
+    orConditions.push({ userId: regex });
+  }
 
       filter.$or = orConditions;
     }
