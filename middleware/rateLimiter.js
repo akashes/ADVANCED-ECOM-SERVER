@@ -9,10 +9,10 @@ export const apiLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// Stricter limit for sensitive actions (Login/Signup/Checkout)
+//strict limit
 export const strictLimiter = rateLimit({
     windowMs: 30 * 60 * 1000, // 30 min
-    max: 5, // Only 5 attempts
+    max: 5,
     message: "Security alert: Too many attempts from this IP.",
     standardHeaders: true,
     legacyHeaders: false,

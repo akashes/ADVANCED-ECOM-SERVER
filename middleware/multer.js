@@ -3,9 +3,7 @@ import fs from 'fs'
 
 const storage = multer.diskStorage({
     destination:function(req,file,cb){
-console.log("BODY:", req.body);
-console.log("FILES:", req.files);
-console.log("HEADERS:", req.headers);
+
         cb(null,'uploads')
     },
     filename:function(req,file,cb){

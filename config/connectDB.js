@@ -17,20 +17,22 @@ export const connectDB=async(io)=>{
 
         console.log('watching for changes in orders collection')
         changeStream.on('change',(next)=>{
-            console.log('a change happensed',next.operationType)
+            console.log('a change happened',next.operationType)
             if(next.operationType==='insert'){
                 const doc = next.fullDocument;
-                console.log('NEW ORDER',doc)
+                console.log('NEW ORDER',doc._id)
                 io.emit('new-order-notification',{
                     message:`New Order Placed!`,
-                    orderId:next.fullDocument._id.toString()
+                    orderId:next.fullDocument._id.toString(),
+                    total:doc.total,
+                    customer:doc.name
                 })
                 
             }
 
         })
         changeStream.on('error', (err) => {
-            console.error('❌ Change Stream Error:', err);
+            console.error('Change Stream Error:', err);
         });
     } catch (error) {
         console.log('DB connection failed',error)

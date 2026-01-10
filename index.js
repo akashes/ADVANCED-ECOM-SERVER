@@ -26,6 +26,7 @@ import {razorpayInstance,paypalClient} from './config/payment.config.js'
 import paymentRouter from './routes/payment.route.js'
 import orderRouter from './routes/order.route.js'
 import adminRouter from './routes/admin.route.js'
+import errorHandler from './middleware/error.js'
 
 
 
@@ -105,11 +106,30 @@ app.use('/api/admin',adminRouter)
 
  
 
-app.use((err, req, res, next) => {
-  console.error("Error middleware:", err);
-  res.status(500).json({ error: "Something went wrong" });
+// app.use((err, req, res, next) => {
+// logger.error(`${req.method} ${req.url} - ${err.message} \nStack: ${err.stack}`);  res.status(500).json({ error: "Something went wrong" });
+// const status = err.statusCode || 500;
+//     res.status(status).json({
+//         success: false,
+//         message: err.message || "Internal Server Error",
+//     });});
+
+//404 handler
+app.use((req, res, next) => {
+    res.status(404).json({ success: false, error: "Route not found" });
+});
+app.use(errorHandler)
+
+
+process.on('unhandledRejection', (err) => {
+    console.error(` ${err.message}`);
+    // server.close(() => process.exit(1)); // 
 });
 
+process.on('uncaughtException', (err) => {
+    console.error(` ${err.message}`);
+    process.exit(1); 
+});
 // app.listen(PORT,()=>{
 //     console.log(`server is running on ${PORT}`)
 // }) 

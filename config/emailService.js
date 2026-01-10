@@ -2,7 +2,7 @@ import nodemailer from 'nodemailer'
 import dotenv from 'dotenv'
 dotenv.config()
 
-console.log(process.env.EMAIL,process.env.EMAIL_PASS)
+// console.log(process.env.EMAIL,process.env.EMAIL_PASS)
 
 // configure SMTP transporter
  const transporter = nodemailer.createTransport({
