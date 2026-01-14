@@ -34,10 +34,8 @@ import errorHandler from './middleware/error.js'
 const allowedOrigins = [
   process.env.USER_FRONTEND_URL,
   process.env.ADMIN_FRONTEND_URL,
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "http://localhost:5175"
-];
+ 
+].filter(Boolean)
 
 const app = express()
 const server = http.createServer(app)
@@ -45,36 +43,27 @@ const server = http.createServer(app)
 //socket setup
 const io = new Server(server, {
   cors: {
-    origin: [
-      process.env.USER_FRONTEND_URL,
-      process.env.ADMIN_FRONTEND_URL,
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "http://localhost:5175"
-    ],
+    origin: allowedOrigins,
     credentials: true
   }
 });
 
 connectDB(io)
 
-// app.use(cors({
-//   origin: function (origin, callback) {
-//     // Allow requests with no origin (like mobile apps or curl)
-//     if (!origin) return callback(null, true);
 
-//     if (allowedOrigins.includes(origin)) {
-//       callback(null, true);
-//     } else {
-//       callback(new Error("Not allowed by CORS"));
-//     }
-//   },
-//   credentials: true,
-// }));
 app.use(cors({
-    origin:['http://localhost:5174','http://localhost:5173','http://localhost:5175'],
-    credentials:true
-}))
+    origin: function (origin, callback) {
+        // Allow requests with no origin 
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
 // app.options('/*',cors())  // cors will manage this by default, but  if any cors errors occurs try uncommenting this  
 app.use(express.json())
 app.use(cookieParser())

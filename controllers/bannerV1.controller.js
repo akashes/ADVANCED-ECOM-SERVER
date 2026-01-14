@@ -81,6 +81,7 @@ export async function createBannerV1Controller(request,response){
 
 export async function getBannerV1Controller(request,response){
     try {
+        console.log('INSIDE GET BANNER DATA')
         const banners=await BannerV1Model.find()
         if(!banners){
             return response.status(404).json({

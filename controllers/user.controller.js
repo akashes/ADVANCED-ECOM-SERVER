@@ -1065,7 +1065,6 @@ export async function resetPasswordController(request,response){
 
 //refresh token controller
 export async function refreshTokenController(request,response){
-    console.log('user hitting refresh token endpoint')
     console.log('coming refrsh token', request.cookies.refreshToken)
     try {
         const refreshToken = request.cookies.refreshToken || request?.headers?.authorization?.split(' ')[1] 
@@ -1086,11 +1085,8 @@ export async function refreshTokenController(request,response){
             } catch (error) {
                 console.log(error)
             }
-          console.log(decoded)
-          console.log(decoded.id)
+        
             const user = await UserModel.findById(decoded.id)
-            console.log(user)
-            console.log('db existing refrsh token',user.refresh_token)
             const storedRefreshToken = user.refresh_token.trim()
             const incomingRefreshToken = decodeURIComponent(refreshToken).trim()
             console.log('match',storedRefreshToken===incomingRefreshToken)
@@ -1317,6 +1313,14 @@ export const deleteUser =async(request,response)=>{
                 error: true
             });
         }
+        const isSameUser = userId.toString() ===request.userId.toString()
+        if(isSameUser){
+            return response.status(400).json({
+                message:'User cannot delete own Account',
+                success:false,
+                error:true
+            })
+        }
         const user = await UserModel.findById(userId);
         if (!user) {
             return response.status(404).json({
@@ -1327,17 +1331,16 @@ export const deleteUser =async(request,response)=>{
         }
         // Delete user avatar from Cloudinary 
 
-        cloudinary.uploader.destroy(user.avatar.public_id)
+if (user.avatar && user.avatar.public_id) {
+            await cloudinary.uploader.destroy(user.avatar.public_id);
+        }
 
-        //delete addresses
-        await AddressModel.deleteMany({userId})
-
-        //delete carts
-        await CartProductModel.deleteMany({userId})
-
-        //delete favorites
-        await MyListModel.deleteMany({userId})
-
+        //delete user associated data
+       await Promise.all([
+            AddressModel.deleteMany({ userId }),
+            CartProductModel.deleteMany({ userId }),
+            MyListModel.deleteMany({ userId })
+        ]);
 
         // Delete product from database
         await UserModel.findByIdAndDelete(userId);

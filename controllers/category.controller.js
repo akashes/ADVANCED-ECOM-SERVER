@@ -385,7 +385,6 @@ export async function getCategoryMapController(request, response) {
                 rootCategories.push(categoryMap[cat._id])
             }
         })
-        console.log(rootCategories)
 
         return response.status(200).json({
             message: "Categories fetched successfully",

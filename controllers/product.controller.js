@@ -272,7 +272,6 @@ export const getAllProductsWithCatFilter = async (req, res) => {
         filter.discount = { $gte: Number(discount) };
     }
 
-    console.log("Applied filter:", filter);
 
     const skip = (page - 1) * perPage;
 
@@ -1339,15 +1338,12 @@ export const getLatestProducts = async (req, res) => {
 
 //filter products
 export const getProductsByFilter = async (req, res) => {
-    console.log(req.query)
     
   try {
-    console.log('inside filter products ')
-    console.log(req.query)
     const page = Math.max(parseInt(req.query.page) || 1, 1);
     const perPage = Math.max(parseInt(req.query.perPage) || 10, 1);
     const { category, subCatId, thirdSubCatId, rating, search,
-         isFeatured, sort,minPrice,maxPrice,discount } = req.query;
+         isFeatured, sort,minPrice,maxPrice,discount,availability } = req.query;
 
     const filter = {};
 
@@ -1388,6 +1384,14 @@ if (category) {
     if(discount){
         filter.discount = { $gte: Number(discount) };
     }
+    if(availability){
+        if(availability==='in-stock'){
+            filter.countInStock={$gt:0};
+        }else if(availability==='out-of-stock'){
+            filter.countInStock={$lte:0}
+        }
+    }
+
 
     if(minPrice || maxPrice){
         filter.price = {};
@@ -1395,8 +1399,10 @@ if (category) {
         if(maxPrice) filter.price.$lte= Number(maxPrice);
     
     }
+    console.log(filter)
+        const stockCountFilter = {...filter}
+    delete stockCountFilter.countInStock
 
-    console.log("Applied filter:", filter);
 
     const skip = (page - 1) * perPage;
 
@@ -1411,17 +1417,34 @@ if (category) {
     if(sort==="discount_desc") sortOption = { discount: -1 };
    
 
-    const [products, totalProducts] = await Promise.all([
+    const [products, totalProducts,stockAggResult] = await Promise.all([
       ProductModel.find(filter)
         .skip(skip)
         .limit(Number(perPage))
         .populate("category subCatId thirdSubCatId")
         .sort(sortOption),
       ProductModel.countDocuments(filter),
+      ProductModel.aggregate([
+        { $match: stockCountFilter }, 
+        {
+          $group: {
+            _id: { 
+               $cond: [{ $gt: ["$countInStock", 0] }, "in-stock", "out-of-stock"] 
+            },
+            count: { $sum: 1 }
+          }
+        }
+      ])
+    
     ]);
 
 
-    
+const stockCounts = { inStock: 0, outOfStock: 0 };
+stockAggResult.forEach(item => {
+        if(item._id === 'in-stock') stockCounts.inStock = item.count;
+        if(item._id === 'out-of-stock') stockCounts.outOfStock = item.count;
+    });
+
 //     let grouped=[]
 // if (category) {
 //   let categories = [];
@@ -1444,6 +1467,7 @@ if (category) {
       error: false,
       products,
       totalProducts,
+      stockCounts,
       totalPages: Math.ceil(totalProducts / perPage),
       currentPage: Number(page), 
     });
@@ -1457,6 +1481,72 @@ if (category) {
   }
 };
 
+// controllers/productController.js
+
+const getAllProducts = async (req, res) => {
+  try {
+    // 1. Build the "Match" stage (Apply all filters EXCEPT pagination)
+    let matchStage = {};
+
+    if (req.query.categories) {
+       matchStage.category = { $in: req.query.categories.split(',').map(id => new mongoose.Types.ObjectId(id)) };
+    }
+    // ... add price, search, rating filters to matchStage ...
+
+    // 2. Run Aggregation
+    const data = await Product.aggregate([
+      // Step A: Filter by criteria (Category, Price, etc.)
+      { $match: matchStage },
+
+      // Step B: Create "Facets" (Parallel calculations)
+      {
+        $facet: {
+          // Calculation 1: Get the actual products for the current page
+          "products": [
+             // apply availability filter logic here if needed for the list
+             { $skip: (page - 1) * perPage },
+             { $limit: perPage }
+          ],
+          
+          // Calculation 2: Get the Total Count (for pagination)
+          "totalCount": [ { $count: "count" } ],
+
+          // Calculation 3: Get Availability Counts (This answers your question!)
+          "availabilityCounts": [
+             {
+               $group: {
+                 _id: { 
+                    $cond: [ { $gt: ["$countInStock", 0] }, "in-stock", "out-of-stock" ] 
+                 },
+                 count: { $sum: 1 }
+               }
+             }
+          ]
+        }
+      }
+    ]);
+
+    const results = data[0];
+    const products = results.products;
+    const totalProducts = results.totalCount[0]?.count || 0;
+    
+    // Process the counts into a readable format
+    const stockCounts = { inStock: 0, outStock: 0 };
+    results.availabilityCounts.forEach(item => {
+        if(item._id === 'in-stock') stockCounts.inStock = item.count;
+        if(item._id === 'out-of-stock') stockCounts.outStock = item.count;
+    });
+
+    return res.status(200).json({
+      products,
+      totalProducts,
+      stockCounts // Send this to frontend
+    });
+
+  } catch (error) {
+    // ... error handling
+  }
+};
 
 
 //product review
