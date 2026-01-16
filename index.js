@@ -48,6 +48,27 @@ const io = new Server(server, {
   }
 });
 
+io.on("connection", (socket) => {
+
+
+    socket.on("join-admin-room", () => {
+        socket.join("admin_room"); 
+        console.log(`Admin joined: ${socket.id}`);
+    });
+
+    socket.on("join-user-room", (userId) => {
+        if (!userId) return; 
+        
+        const roomName = `user_${userId}`;
+        socket.join(roomName);
+        console.log(`User joined room: ${roomName}`);
+    });
+
+    socket.on("disconnect", () => {
+        console.log("User disconnected", socket.id);
+    });
+});
+
 connectDB(io)
 
 

@@ -13,21 +13,41 @@ export const connectDB=async(io)=>{
         await mongoose.connect(process.env.MONGO_URI)
         console.log('DB connected')
         //watching DB
-        const changeStream = OrderModel.watch()
+        const changeStream = OrderModel.watch([],{fullDocument:'updateLookup'})
 
         console.log('watching for changes in orders collection')
         changeStream.on('change',(next)=>{
-            console.log('a change happened',next.operationType)
+            //for new orders creation by client
             if(next.operationType==='insert'){
                 const doc = next.fullDocument;
-                console.log('NEW ORDER',doc._id)
-                io.emit('new-order-notification',{
+                //send to admin room 
+
+                io.to('admin_room').emit('new-order-notification',{
                     message:`New Order Placed!`,
-                    orderId:next.fullDocument._id.toString(),
+                    orderId:doc._id.toString(),
                     total:doc.total,
                     customer:doc.name
                 })
                 
+            }
+            if(next.operationType==='update'){
+                const doc = next.fullDocument;
+
+const updatedFields = next.updateDescription.updatedFields;            
+console.log(updatedFields)
+
+if(updatedFields.order_status){
+    console.log(`Order ${doc._id} updated for User ${doc.name}`);
+
+    //targeted emit
+    io.to(`user_${doc.userId}`).emit('order-updated',{
+        orderId:doc._id,
+        order_status:doc.order_status,
+
+
+    })
+
+}
             }
 
         })
