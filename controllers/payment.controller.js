@@ -668,30 +668,27 @@ export const updateOrderStatus=async(req,res)=>{
         order.order_status = status
         await order.save()
 
-    //send email
-             console.log('sending email to ',order.email)
-             const verifyEmail = await sendEmailFun(
-                order.email,
-                'Your Order Status has been Updated',
-                `Your order is now ${order.order_status}`,
-                orderUpdateTemplate(order.name,order._id,order.order_status))
-              console.log(verifyEmail)
 
-    // -- sms twilio
-    // const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
-    // await client.messages.create({
-    //   body: `Your order #${order._id} is now ${status}`,
-    //   from: "whatsapp:+14155238886", // or SMS sender ID
-    //   to: `whatsapp:${order.phone}`, // or `+91xxxxxx`
-    // });
-
-        return res.status(200).json({
+            res.status(200).json({
             success:true,
             error:false,
             message:"Order status updated successfully",
             order,
             orderId
         })
+    //send email
+          try {
+      console.log("sending email to ", order.email);
+      await sendEmailFun(
+        order.email,
+        "Your Order Status has been Updated",
+        `Your order is now ${order.order_status}`,
+        orderUpdateTemplate(order.name, order._id, order.order_status)
+      );
+      console.log("Email sent successfully");
+    } catch (emailError) {
+      console.error("Failed to send email:", emailError.message);
+    }
         
     } catch (error) {
         console.log(error)
